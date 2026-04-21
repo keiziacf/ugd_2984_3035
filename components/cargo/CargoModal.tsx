@@ -1,0 +1,663 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  X,
+  Package,
+  Save,
+  AlertCircle,
+  ChevronDown,
+} from 'lucide-react';
+import { useApp } from '@/context/AppContext';
+import { useCargo } from '@/context/CargoContext';
+import type { Shipment, ShipmentStatus } from '@/lib/mock-data';
+
+const AIRPORT_OPTIONS = [
+  { code: 'CGK', name: 'Soekarno-Hatta Jakarta' },
+  { code: 'SUB', name: 'Juanda Surabaya' },
+  { code: 'DPS', name: 'Ngurah Rai Bali' },
+  { code: 'UPG', name: 'Hasanuddin Makassar' },
+  { code: 'KNO', name: 'Kualanamu Medan' },
+  { code: 'BPN', name: 'Sultan Aji Muhammad Sulaiman' },
+  { code: 'SOC', name: 'Adi Soemarmo Solo' },
+  { code: 'JOG', name: 'Adisutjipto Yogyakarta' },
+  { code: 'PLM', name: 'SMB II Palembang' },
+  { code: 'SRG', name: 'Ahmad Yani Semarang' },
+  { code: 'HLP', name: 'Halim Perdanakusuma' },
+  { code: 'PNK', name: 'Supadio Pontianak' },
+  { code: 'BDJ', name: 'Syamsudin Noor Banjarmasin' },
+];
+
+const STATUS_OPTIONS: ShipmentStatus[] = [
+  'Received',
+  'Sortation',
+  'Loaded to Aircraft',
+  'Departed',
+  'Arrived',
+];
+
+const STATUS_LABELS: Record<ShipmentStatus, string> = {
+  Received: 'Diterima di Gudang',
+  Sortation: 'Proses Sortasi',
+  'Loaded to Aircraft': 'Dimuat ke Pesawat',
+  Departed: 'Pesawat Berangkat',
+  Arrived: 'Tiba di Tujuan',
+};
+
+const COMMODITY_OPTIONS = [
+  'Dokumen', 'Dokumen Keuangan', 'Dokumen Penting',
+  'Elektronik', 'Mesin Industri', 'Suku Cadang Industri',
+  'Obat-obatan', 'Pakaian Jadi', 'Perhiasan',
+  'Produk Pertanian', 'Produk Segar', 'Buah-buahan',
+  'Sampel Mineral', 'Spare Parts', 'Tekstil',
+  'Perlengkapan Hotel', 'Lainnya',
+];
+
+interface FormState {
+  awb: string;
+  shipper: string;
+  consignee: string;
+  commodity: string;
+  originCode: string;
+  destinationCode: string;
+  weight: string;
+  pieces: string;
+  flightNumber: string;
+  scheduledDeparture: string;
+  currentStatus: ShipmentStatus;
+  statusNote: string;
+}
+
+const EMPTY_FORM: FormState = {
+  awb: '',
+  shipper: '',
+  consignee: '',
+  commodity: '',
+  originCode: '',
+  destinationCode: '',
+  weight: '',
+  pieces: '',
+  flightNumber: '',
+  scheduledDeparture: '',
+  currentStatus: 'Received',
+  statusNote: '',
+};
+
+type FormErrors = Partial<Record<keyof FormState, string>>;
+
+interface CargoModalProps {
+  mode: 'create' | 'edit';
+  shipment: Shipment | null;
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+}
+
+export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalProps) {
+  const { isDark, currentUser } = useApp();
+  const { addShipment, updateShipment, generateAWB } = useCargo();
+
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
+
+  // Populate form
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (mode === 'edit' && shipment) {
+        setForm({
+          awb: shipment.awb,
+          shipper: shipment.shipper,
+          consignee: shipment.consignee,
+          commodity: shipment.commodity,
+          originCode: shipment.origin.code,
+          destinationCode: shipment.destination.code,
+          weight: String(shipment.weight),
+          pieces: String(shipment.pieces),
+          flightNumber: shipment.flightNumber,
+          scheduledDeparture: shipment.scheduledDeparture,
+          currentStatus: shipment.currentStatus,
+          statusNote: '',
+        });
+      } else if (mode === 'create') {
+        setForm({ ...EMPTY_FORM, awb: generateAWB() });
+      }
+
+      setErrors({});
+      setApiError('');
+    });
+  }, [generateAWB, mode, shipment]);
+
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }));
+  }
+
+  function validate(): boolean {
+    const e: FormErrors = {};
+    if (!form.awb.trim()) e.awb = 'Nomor AWB wajib diisi.';
+    else if (!/^AT-\d{8,12}$/.test(form.awb.trim().toUpperCase()) && !/^AT-\d{8,}/.test(form.awb.trim().toUpperCase())) {
+      if (!form.awb.trim().toUpperCase().startsWith('AT-')) e.awb = 'Format AWB harus dimulai dengan AT-.';
+    }
+    if (!form.shipper.trim()) e.shipper = 'Nama pengirim wajib diisi.';
+    if (!form.consignee.trim()) e.consignee = 'Nama penerima wajib diisi.';
+    if (!form.commodity.trim()) e.commodity = 'Jenis komoditas wajib diisi.';
+    if (!form.originCode) e.originCode = 'Bandara asal wajib dipilih.';
+    if (!form.destinationCode) e.destinationCode = 'Bandara tujuan wajib dipilih.';
+    if (form.originCode && form.destinationCode && form.originCode === form.destinationCode) {
+      e.destinationCode = 'Bandara tujuan harus berbeda dari asal.';
+    }
+    const w = parseFloat(form.weight);
+    if (!form.weight.trim()) e.weight = 'Berat wajib diisi.';
+    else if (isNaN(w) || w <= 0) e.weight = 'Berat harus lebih dari 0 kg.';
+    const p = parseInt(form.pieces);
+    if (!form.pieces.trim()) e.pieces = 'Jumlah koli wajib diisi.';
+    else if (isNaN(p) || p <= 0 || !Number.isInteger(p)) e.pieces = 'Jumlah koli harus bilangan bulat positif.';
+    if (!form.flightNumber.trim()) e.flightNumber = 'Nomor penerbangan wajib diisi.';
+    if (!form.scheduledDeparture.trim()) e.scheduledDeparture = 'Jadwal keberangkatan wajib diisi.';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    setApiError('');
+
+    // Simulate slight processing delay
+    await new Promise((r) => setTimeout(r, 400));
+
+    const originAirport = AIRPORT_OPTIONS.find((a) => a.code === form.originCode);
+    const destAirport = AIRPORT_OPTIONS.find((a) => a.code === form.destinationCode);
+
+    if (mode === 'create') {
+      const result = addShipment(
+        {
+          awb: form.awb.trim().toUpperCase(),
+          shipper: form.shipper,
+          consignee: form.consignee,
+          commodity: form.commodity,
+          originCode: form.originCode,
+          originName: originAirport?.name ?? form.originCode,
+          destinationCode: form.destinationCode,
+          destinationName: destAirport?.name ?? form.destinationCode,
+          weight: parseFloat(form.weight),
+          pieces: parseInt(form.pieces),
+          flightNumber: form.flightNumber,
+          scheduledDeparture: form.scheduledDeparture,
+          currentStatus: form.currentStatus,
+        },
+        currentUser.name
+      );
+      if (!result.ok) {
+        setApiError(result.error ?? 'Gagal menambahkan kargo.');
+        setLoading(false);
+        return;
+      }
+      onSuccess(`Kargo ${form.awb.toUpperCase()} berhasil ditambahkan ke sistem.`);
+    } else if (shipment) {
+      const result = updateShipment(
+        shipment.awb,
+        {
+          shipper: form.shipper,
+          consignee: form.consignee,
+          commodity: form.commodity,
+          originCode: form.originCode,
+          originName: originAirport?.name ?? form.originCode,
+          destinationCode: form.destinationCode,
+          destinationName: destAirport?.name ?? form.destinationCode,
+          weight: parseFloat(form.weight),
+          pieces: parseInt(form.pieces),
+          flightNumber: form.flightNumber,
+          scheduledDeparture: form.scheduledDeparture,
+          currentStatus: form.currentStatus,
+        },
+        currentUser.name
+      );
+      if (!result.ok) {
+        setApiError(result.error ?? 'Gagal memperbarui data kargo.');
+        setLoading(false);
+        return;
+      }
+      onSuccess(`Data kargo ${shipment.awb} berhasil diperbarui.`);
+    }
+
+    setLoading(false);
+    onClose();
+  }
+
+  const inputBase = `w-full px-3 py-2.5 rounded-xl border transition-colors outline-none ${
+    isDark
+      ? 'bg-slate-700 border-slate-600 text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:bg-slate-600'
+      : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400 focus:border-blue-500'
+  }`;
+
+  const labelBase = `block mb-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`;
+  const errorCls = 'text-red-500 dark:text-red-400 mt-1';
+
+  const isStatusChanged = mode === 'edit' && shipment && form.currentStatus !== shipment.currentStatus;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(5px)' }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92, y: 24 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 16 }}
+          transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+          className={`w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border shadow-2xl ${
+            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div
+            className={`flex items-center justify-between px-6 py-4 border-b flex-shrink-0 ${
+              isDark ? 'border-slate-700' : 'border-slate-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                  isDark ? 'bg-blue-900/40' : 'bg-blue-50'
+                }`}
+              >
+                <Package size={18} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3
+                  className={`${isDark ? 'text-slate-100' : 'text-slate-800'}`}
+                  style={{ fontWeight: 700, fontSize: '1.0625rem' }}
+                >
+                  {mode === 'create' ? 'Tambah Kargo Baru' : 'Edit Data Kargo'}
+                </h3>
+                {mode === 'edit' && shipment && (
+                  <p
+                    className={`font-mono ${isDark ? 'text-blue-400' : 'text-blue-600'}`}
+                    style={{ fontSize: '0.8125rem' }}
+                  >
+                    {shipment.awb}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-xl transition-colors ${
+                isDark ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
+              }`}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Body (scrollable) */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+            <div className="px-6 py-5 space-y-5">
+
+              {/* API Error */}
+              {apiError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50"
+                >
+                  <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-700 dark:text-red-300" style={{ fontSize: '0.875rem' }}>
+                    {apiError}
+                  </p>
+                </motion.div>
+              )}
+
+              {/* Section 1: Identifikasi */}
+              <div>
+                <p
+                  className={`mb-3 pb-2 border-b ${isDark ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-slate-100'}`}
+                  style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                >
+                  Identifikasi Kargo
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* AWB */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Nomor AWB <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.awb}
+                      onChange={(e) => set('awb', e.target.value)}
+                      readOnly={mode === 'edit'}
+                      placeholder="AT-YYMMDDXXXX"
+                      className={`${inputBase} font-mono ${mode === 'edit' ? 'opacity-70 cursor-not-allowed' : ''} ${errors.awb ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.awb && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.awb}</p>}
+                    {mode === 'create' && (
+                      <p className={`mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.6875rem' }}>
+                        Auto-generated · Dapat diubah
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Commodity */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Jenis Komoditas <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={form.commodity}
+                        onChange={(e) => set('commodity', e.target.value)}
+                        className={`${inputBase} appearance-none pr-8 ${errors.commodity ? 'border-red-500' : ''}`}
+                        style={{ fontSize: '0.875rem' }}
+                      >
+                        <option value="">Pilih komoditas...</option>
+                        {COMMODITY_OPTIONS.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-400'}`} />
+                    </div>
+                    {errors.commodity && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.commodity}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Pengirim & Penerima */}
+              <div>
+                <p
+                  className={`mb-3 pb-2 border-b ${isDark ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-slate-100'}`}
+                  style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                >
+                  Pengirim & Penerima
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Nama Pengirim (Shipper) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.shipper}
+                      onChange={(e) => set('shipper', e.target.value)}
+                      placeholder="PT Nama Perusahaan / Nama Lengkap"
+                      className={`${inputBase} ${errors.shipper ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.shipper && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.shipper}</p>}
+                  </div>
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Nama Penerima (Consignee) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.consignee}
+                      onChange={(e) => set('consignee', e.target.value)}
+                      placeholder="PT Nama Perusahaan / Nama Lengkap"
+                      className={`${inputBase} ${errors.consignee ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.consignee && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.consignee}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Rute */}
+              <div>
+                <p
+                  className={`mb-3 pb-2 border-b ${isDark ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-slate-100'}`}
+                  style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                >
+                  Rute Pengiriman
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Origin */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Bandara Asal <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={form.originCode}
+                        onChange={(e) => set('originCode', e.target.value)}
+                        className={`${inputBase} appearance-none pr-8 ${errors.originCode ? 'border-red-500' : ''}`}
+                        style={{ fontSize: '0.875rem' }}
+                      >
+                        <option value="">Pilih bandara asal...</option>
+                        {AIRPORT_OPTIONS.map((a) => (
+                          <option key={a.code} value={a.code}>
+                            {a.code} — {a.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                    </div>
+                    {errors.originCode && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.originCode}</p>}
+                  </div>
+
+                  {/* Destination */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Bandara Tujuan <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={form.destinationCode}
+                        onChange={(e) => set('destinationCode', e.target.value)}
+                        className={`${inputBase} appearance-none pr-8 ${errors.destinationCode ? 'border-red-500' : ''}`}
+                        style={{ fontSize: '0.875rem' }}
+                      >
+                        <option value="">Pilih bandara tujuan...</option>
+                        {AIRPORT_OPTIONS.filter((a) => a.code !== form.originCode).map((a) => (
+                          <option key={a.code} value={a.code}>
+                            {a.code} — {a.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                    </div>
+                    {errors.destinationCode && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.destinationCode}</p>}
+                  </div>
+
+                  {/* Flight Number */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      No. Penerbangan <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.flightNumber}
+                      onChange={(e) => set('flightNumber', e.target.value)}
+                      placeholder="GA-412 / JT-711"
+                      className={`${inputBase} font-mono uppercase ${errors.flightNumber ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.flightNumber && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.flightNumber}</p>}
+                  </div>
+
+                  {/* Scheduled Departure */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Jadwal Keberangkatan <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.scheduledDeparture}
+                      onChange={(e) => set('scheduledDeparture', e.target.value)}
+                      placeholder="13 Apr 2026, 14:00 WIB"
+                      className={`${inputBase} ${errors.scheduledDeparture ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.scheduledDeparture && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.scheduledDeparture}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Detail Fisik */}
+              <div>
+                <p
+                  className={`mb-3 pb-2 border-b ${isDark ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-slate-100'}`}
+                  style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                >
+                  Detail Fisik Kargo
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Berat (kg) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={form.weight}
+                      onChange={(e) => set('weight', e.target.value)}
+                      placeholder="0.0"
+                      min="0.1"
+                      step="0.1"
+                      className={`${inputBase} ${errors.weight ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.weight && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.weight}</p>}
+                  </div>
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Jumlah Koli <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={form.pieces}
+                      onChange={(e) => set('pieces', e.target.value)}
+                      placeholder="1"
+                      min="1"
+                      step="1"
+                      className={`${inputBase} ${errors.pieces ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.pieces && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.pieces}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Status */}
+              <div>
+                <p
+                  className={`mb-3 pb-2 border-b ${isDark ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-slate-100'}`}
+                  style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                >
+                  Status Pengiriman
+                </p>
+                <div>
+                  <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                    Status Saat Ini <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {STATUS_OPTIONS.map((status) => {
+                      const isSelected = form.currentStatus === status;
+                      const statusColors: Record<ShipmentStatus, string> = {
+                        Received: 'border-slate-400 bg-slate-50 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+                        Sortation: 'border-blue-400 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+                        'Loaded to Aircraft': 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                        Departed: 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+                        Arrived: 'border-green-400 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+                      };
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => set('currentStatus', status)}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all text-left ${
+                            isSelected
+                              ? statusColors[status]
+                              : isDark
+                              ? 'border-slate-700 bg-slate-700/30 text-slate-400 hover:border-slate-600'
+                              : 'border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                              isSelected
+                                ? status === 'Received' ? 'bg-slate-500'
+                                  : status === 'Sortation' ? 'bg-blue-500'
+                                  : status === 'Loaded to Aircraft' ? 'bg-amber-500'
+                                  : status === 'Departed' ? 'bg-indigo-500'
+                                  : 'bg-green-500'
+                                : isDark ? 'bg-slate-600' : 'bg-slate-300'
+                            }`}
+                          />
+                          <span style={{ fontSize: '0.8125rem', fontWeight: isSelected ? 600 : 400 }}>
+                            {STATUS_LABELS[status]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Status change notice */}
+                  {isStatusChanged && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/40"
+                    >
+                      <AlertCircle size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-blue-700 dark:text-blue-300" style={{ fontSize: '0.8125rem' }}>
+                        Perubahan status akan otomatis dicatat dalam riwayat tracking AWB sebagai event baru.
+                      </p>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div
+              className={`flex gap-3 px-6 py-4 border-t flex-shrink-0 ${
+                isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50/50'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={onClose}
+                className={`flex-1 py-2.5 px-4 rounded-xl border transition-colors ${
+                  isDark
+                    ? 'border-slate-600 text-slate-300 hover:bg-slate-700'
+                    : 'border-slate-300 text-slate-600 hover:bg-slate-100'
+                }`}
+                style={{ fontWeight: 500, fontSize: '0.875rem' }}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white transition-colors flex items-center justify-center gap-2"
+                style={{ fontWeight: 600, fontSize: '0.875rem' }}
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Save size={15} />
+                )}
+                {loading
+                  ? 'Menyimpan...'
+                  : mode === 'create'
+                  ? 'Tambah Kargo'
+                  : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}

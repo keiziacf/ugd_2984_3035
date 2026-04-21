@@ -1,0 +1,22 @@
+
+> ugd6-c-3035@0.1.0 dev
+> next dev --hostname 127.0.0.1
+
+▲ Next.js 16.2.3 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+✓ Ready in 1108ms
+Creating turbopack project {
+  dir: 'C:\\Users\\Lenovo\\OneDrive\\Documents\\SEMESTER 4\\siweb\\ugd_2984_3035',
+  testMode: true
+}
+
+○ Compiling /login ...
+ GET /landing 200 in 6.3s (next.js: 6.1s, application-code: 270ms)
+ GET /login 200 in 6.3s (next.js: 6.2s, application-code: 107ms)
+ GET /landing 200 in 226ms (next.js: 13ms, application-code: 213ms)
+ GET /login 200 in 234ms (next.js: 137ms, application-code: 97ms)
+○ Compiling / ...
+ GET / 200 in 4.6s (next.js: 4.2s, application-code: 416ms)
+ GET /landing 200 in 81ms (next.js: 13ms, application-code: 67ms)
+^C^C
