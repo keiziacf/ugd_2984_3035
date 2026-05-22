@@ -13,7 +13,7 @@ const LOGIN_HELP_MESSAGE = LOGIN_ACCOUNTS.map(
 
 export function LoginPage() {
   const router = useRouter();
-  const { hydrated, isAuthenticated, login } = useApp();
+  const { hydrated, isAuthenticated, login, startNavigationLoading } = useApp();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,20 +27,22 @@ export function LoginPage() {
     router.prefetch('/');
 
     if (hydrated && isAuthenticated) {
+      startNavigationLoading('Membuka dashboard...');
       router.replace('/');
     }
-  }, [hydrated, isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router, startNavigationLoading]);
 
   async function submitCredentials(nextEmail: string, nextPassword: string) {
     setLoading(true);
     const result = login(nextEmail, nextPassword);
-    setLoading(false);
 
     if (result.ok) {
+      startNavigationLoading('Membuka dashboard...');
       router.replace('/');
       return;
     }
 
+    setLoading(false);
     setError(result.error ?? 'Login gagal.');
   }
 

@@ -29,11 +29,26 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar, isDark, currentUser, logout } = useApp();
+  const {
+    sidebarCollapsed,
+    toggleSidebar,
+    isDark,
+    currentUser,
+    logout,
+    startNavigationLoading,
+  } = useApp();
   const pathname = usePathname();
   const router = useRouter();
 
+  function navigateTo(path: string, message = 'Membuka halaman...') {
+    if (pathname !== path) {
+      startNavigationLoading(message);
+    }
+    router.push(path);
+  }
+
   function handleLogout() {
+    startNavigationLoading('Keluar dari sistem...');
     logout();
     router.replace('/login');
   }
@@ -148,7 +163,7 @@ export function Sidebar() {
       <div className="flex-shrink-0 p-3">
         <button
           type="button"
-          onClick={() => router.push('/settings')}
+          onClick={() => navigateTo('/settings', 'Membuka pengaturan...')}
           className={`flex w-full items-center overflow-hidden rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/5 ${
             sidebarCollapsed ? 'justify-center' : 'gap-3'
           }`}

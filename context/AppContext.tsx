@@ -1,6 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { NavigationLoadingOverlay } from '@/components/ui/NavigationLoadingOverlay';
 import { getLoginAccountByEmail } from '@/lib/auth';
 import { users } from '@/lib/mock-data';
 
@@ -21,6 +23,9 @@ interface AppContextType {
   toggleSidebar: () => void;
   isAuthenticated: boolean;
   currentUser: AuthUser;
+  isNavigationLoading: boolean;
+  startNavigationLoading: (message?: string) => void;
+  stopNavigationLoading: () => void;
   login: (email: string, password: string) => { ok: boolean; error?: string };
   logout: () => void;
 }
@@ -46,11 +51,23 @@ const GUEST_USER: AuthUser = {
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [hydrated, setHydrated] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser>(GUEST_USER);
+  const [isNavigationLoading, setIsNavigationLoading] = useState(false);
+  const [navigationLoadingMessage, setNavigationLoadingMessage] = useState('Memuat halaman...');
+
+  const startNavigationLoading = useCallback((message = 'Memuat halaman...') => {
+    setNavigationLoadingMessage(message);
+    setIsNavigationLoading(true);
+  }, []);
+
+  const stopNavigationLoading = useCallback(() => {
+    setIsNavigationLoading(false);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +96,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
   }, [isDark]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const timer = window.setTimeout(() => {
+      setIsNavigationLoading(false);
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [hydrated, pathname]);
+
+  useEffect(() => {
+    function handleDocumentClick(event: MouseEvent) {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const anchor = target.closest('a[href]');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href');
+      const linkTarget = anchor.getAttribute('target');
+      const download = anchor.hasAttribute('download');
+      if (!href || linkTarget || download || href.startsWith('#')) return;
+
+      const nextUrl = new URL(href, window.location.href);
+      if (nextUrl.origin !== window.location.origin) return;
+
+      const currentUrl = new URL(window.location.href);
+      const nextPath = `${nextUrl.pathname}${nextUrl.search}`;
+      const currentPath = `${currentUrl.pathname}${currentUrl.search}`;
+      if (nextPath === currentPath) return;
+
+      startNavigationLoading('Membuka halaman...');
+    }
+
+    document.addEventListener('click', handleDocumentClick, true);
+    return () => document.removeEventListener('click', handleDocumentClick, true);
+  }, [startNavigationLoading]);
 
   function login(email: string, password: string): { ok: boolean; error?: string } {
     if (!email.trim()) return { ok: false, error: 'Email tidak boleh kosong.' };
@@ -125,11 +191,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toggleSidebar: () => setSidebarCollapsed((p) => !p),
         isAuthenticated,
         currentUser,
+        isNavigationLoading,
+        startNavigationLoading,
+        stopNavigationLoading,
         login,
         logout,
       }}
     >
       {children}
+      <NavigationLoadingOverlay
+        show={!hydrated || isNavigationLoading}
+        message={!hydrated ? 'Menyiapkan Aero Track...' : navigationLoadingMessage}
+      />
     </AppContext.Provider>
   );
 }

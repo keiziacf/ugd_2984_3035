@@ -12,6 +12,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { AeroTrackIcon } from '@/components/icons/AeroTrackLogo';
+import { useApp } from '@/context/AppContext';
 
 const FEATURES: { icon: LucideIcon; text: string }[] = [
   { icon: Plane, text: 'Tracking AWB & penerbangan real-time' },
@@ -46,6 +47,7 @@ const fadeBase: CSSProperties = {
 export function LandingPage() {
   const [visible, setVisible] = useState(false);
   const router = useRouter();
+  const { startNavigationLoading } = useApp();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setVisible(true), 70);
@@ -243,7 +245,10 @@ export function LandingPage() {
       >
         <button
           type="button"
-          onClick={() => router.push('/login')}
+          onClick={() => {
+            startNavigationLoading('Membuka halaman login...');
+            router.push('/login');
+          }}
           title="Masuk ke halaman login"
           className="flex w-full items-center justify-center gap-3 rounded-[18px] border border-[#3d79ff]/20 bg-gradient-to-r from-[#2d67e8]/85 to-[#3b79ff]/85 px-8 py-4 text-[17px] font-bold text-white shadow-[0_18px_45px_rgba(36,95,238,0.28)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(36,95,238,0.34)] sm:w-auto sm:min-w-[172px]"
         >

@@ -7,13 +7,14 @@ import { useApp } from '@/context/AppContext';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { hydrated, isAuthenticated } = useApp();
+  const { hydrated, isAuthenticated, startNavigationLoading } = useApp();
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {
+      startNavigationLoading('Mengarahkan ke halaman awal...');
       router.replace('/landing');
     }
-  }, [hydrated, isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router, startNavigationLoading]);
 
   if (!hydrated) {
     return (

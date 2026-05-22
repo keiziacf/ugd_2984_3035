@@ -14,6 +14,7 @@ import {
   Info,
 } from 'lucide-react';
 import { AeroTrackIcon } from '../icons/AeroTrackLogo';
+import { useApp } from '@/context/AppContext';
 
 interface LoginFormSectionProps {
   email: string;
@@ -51,6 +52,7 @@ export function LoginFormSection({
   onForgotPassword,
 }: LoginFormSectionProps) {
   const router = useRouter();
+  const { startNavigationLoading } = useApp();
 
   return (
     <div className="relative flex w-full items-center justify-center bg-white lg:w-[42%] xl:w-[38%]">
@@ -67,7 +69,10 @@ export function LoginFormSection({
 
       <button
         type="button"
-        onClick={() => router.push('/landing')}
+        onClick={() => {
+          startNavigationLoading('Membuka halaman awal...');
+          router.push('/landing');
+        }}
         className="absolute right-6 top-6 flex items-center gap-1.5 text-slate-400 transition-colors hover:text-slate-600"
         style={{ fontSize: '0.8125rem' }}
       >

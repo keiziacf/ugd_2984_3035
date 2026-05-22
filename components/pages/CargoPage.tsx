@@ -26,7 +26,10 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useCargo } from '@/context/CargoContext';
-import { CRUD_DISABLED, CRUD_DISABLED_MESSAGE } from '@/lib/feature-flags';
+import {
+  CARGO_CRUD_DISABLED as CRUD_DISABLED,
+  CRUD_DISABLED_MESSAGE,
+} from '@/lib/feature-flags';
 import { hasFeature } from '@/lib/permissions';
 import { ROLE_META } from '@/lib/permissions';
 import { CargoModal } from '@/components/cargo/CargoModal';
@@ -276,7 +279,9 @@ export function CargoPage() {
             </span>
           </div>
           <p className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`} style={{ fontSize: '0.875rem' }}>
-            {currentUser.role === 'supervisor'
+            {crudDisabled
+              ? 'Data kargo tetap bisa dipantau, tetapi aksi tambah, edit, dan hapus sedang dinonaktifkan.'
+              : currentUser.role === 'supervisor'
               ? 'Mode hanya baca — Anda dapat memantau data kargo tanpa mengubahnya.'
               : 'Kelola data kargo: tambah, edit, dan hapus shipment.'}
           </p>

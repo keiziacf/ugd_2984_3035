@@ -23,12 +23,18 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Database health check failed.', error);
+    const message =
+      error instanceof Error ? error.message : 'Database connection failed.';
+    const hint = message.includes('fetch failed')
+      ? 'Neon connection could not be reached from the dev server. Check internet access and the unpooled connection string in .env.'
+      : undefined;
 
     return Response.json(
       {
         connected: false,
         provider: 'neon',
-        error: 'Database connection failed.',
+        error: message,
+        hint,
       },
       { status: 500 }
     );

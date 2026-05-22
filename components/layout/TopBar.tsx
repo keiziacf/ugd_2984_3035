@@ -99,7 +99,7 @@ const NOTIFICATIONS: Record<'admin' | 'supervisor' | 'operator', NotificationIte
 };
 
 export function TopBar() {
-  const { isDark, toggleDark, currentUser, logout } = useApp();
+  const { isDark, toggleDark, currentUser, logout, startNavigationLoading } = useApp();
   const pathname = usePathname();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -126,10 +126,14 @@ export function TopBar() {
   function navigateTo(href: string) {
     setNotificationsOpen(false);
     setProfileOpen(false);
+    if (href !== pathname) {
+      startNavigationLoading('Membuka halaman...');
+    }
     router.push(href);
   }
 
   function handleLogout() {
+    startNavigationLoading('Keluar dari sistem...');
     logout();
     setNotificationsOpen(false);
     setProfileOpen(false);

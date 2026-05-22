@@ -1,7 +1,10 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { CRUD_DISABLED, CRUD_DISABLED_MESSAGE } from '@/lib/feature-flags';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import {
+  CARGO_CRUD_DISABLED as CRUD_DISABLED,
+  CRUD_DISABLED_MESSAGE,
+} from '@/lib/feature-flags';
 import { shipments as initialShipmentsMap } from '@/lib/mock-data';
 import type { Shipment, ShipmentStatus, TrackingEvent } from '@/lib/mock-data';
 
@@ -30,6 +33,7 @@ interface CargoContextType {
 }
 
 const CargoContext = createContext<CargoContextType | null>(null);
+const CARGO_STORAGE_KEY = 'aero_track_shipments';
 
 function nowTimestamp(): string {
   const now = new Date();
@@ -42,10 +46,51 @@ function nowTimestamp(): string {
   return `${d} ${m} ${y}, ${h}:${min} WIB`;
 }
 
+function getInitialShipments(): Shipment[] {
+  return Object.values(initialShipmentsMap);
+}
+
+function readStoredShipments(): Shipment[] | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const stored = window.localStorage.getItem(CARGO_STORAGE_KEY);
+    if (!stored) return null;
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return null;
+
+    return parsed.filter((item): item is Shipment => {
+      return (
+        item &&
+        typeof item.awb === 'string' &&
+        typeof item.shipper === 'string' &&
+        typeof item.consignee === 'string' &&
+        typeof item.currentStatus === 'string' &&
+        Array.isArray(item.tracking)
+      );
+    });
+  } catch {
+    return null;
+  }
+}
+
 export function CargoProvider({ children }: { children: ReactNode }) {
-  const [shipments, setShipments] = useState<Shipment[]>(
-    () => Object.values(initialShipmentsMap)
-  );
+  const [shipments, setShipments] = useState<Shipment[]>(getInitialShipments);
+  const [storageReady, setStorageReady] = useState(false);
+
+  useEffect(() => {
+    const storedShipments = readStoredShipments();
+    if (storedShipments !== null) {
+      setShipments(storedShipments);
+    }
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    window.localStorage.setItem(CARGO_STORAGE_KEY, JSON.stringify(shipments));
+  }, [shipments, storageReady]);
 
   const generateAWB = useCallback((): string => {
     const now = new Date();
@@ -116,6 +161,11 @@ export function CargoProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: CRUD_DISABLED_MESSAGE };
       }
 
+      const existing = shipments.find((s) => s.awb === awb);
+      if (!existing) {
+        return { ok: false, error: `Kargo ${awb} tidak ditemukan.` };
+      }
+
       setShipments((prev) =>
         prev.map((s) => {
           if (s.awb !== awb) return s;
@@ -156,7 +206,7 @@ export function CargoProvider({ children }: { children: ReactNode }) {
       );
       return { ok: true };
     },
-    []
+    [shipments]
   );
 
   const deleteShipment = useCallback((awb: string): { ok: boolean; error?: string } => {
@@ -164,9 +214,13 @@ export function CargoProvider({ children }: { children: ReactNode }) {
       return { ok: false, error: CRUD_DISABLED_MESSAGE };
     }
 
+    if (!shipments.some((s) => s.awb === awb)) {
+      return { ok: false, error: `Kargo ${awb} tidak ditemukan.` };
+    }
+
     setShipments((prev) => prev.filter((s) => s.awb !== awb));
     return { ok: true };
-  }, []);
+  }, [shipments]);
 
   return (
     <CargoContext.Provider

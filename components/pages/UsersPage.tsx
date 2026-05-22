@@ -15,7 +15,10 @@ import {
   Info,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { CRUD_DISABLED, CRUD_DISABLED_MESSAGE } from '@/lib/feature-flags';
+import {
+  CRUD_DISABLED_MESSAGE,
+  USER_CRUD_DISABLED,
+} from '@/lib/feature-flags';
 import { users as initialUsers } from '@/lib/mock-data';
 
 type RoleFilter = 'all' | 'admin' | 'supervisor' | 'operator';
@@ -66,7 +69,7 @@ export function UsersPage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const crudDisabled = CRUD_DISABLED;
+  const crudDisabled = USER_CRUD_DISABLED;
   const [userRows, setUserRows] = useState(initialUsers);
   const [toast, setToast] = useState('');
 

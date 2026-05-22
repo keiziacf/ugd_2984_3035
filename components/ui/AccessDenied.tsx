@@ -11,7 +11,7 @@ interface AccessDeniedProps {
 }
 
 export function AccessDenied({ requiredRole, pageName }: AccessDeniedProps) {
-  const { isDark, currentUser } = useApp();
+  const { isDark, currentUser, startNavigationLoading } = useApp();
   const router = useRouter();
   const roleMeta = ROLE_META[currentUser.role];
 
@@ -115,7 +115,10 @@ export function AccessDenied({ requiredRole, pageName }: AccessDeniedProps) {
             Kembali
           </button>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => {
+              startNavigationLoading('Membuka dashboard...');
+              router.push('/');
+            }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             style={{ fontSize: '0.875rem', fontWeight: 500 }}
           >
