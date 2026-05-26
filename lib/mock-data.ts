@@ -11,12 +11,18 @@ export interface TrackingEvent {
 export interface Shipment {
   awb: string;
   shipper: string;
+  shipperPhone?: string;
   consignee: string;
+  consigneePhone?: string;
   origin: { code: string; name: string };
+  originCity?: string;
   destination: { code: string; name: string };
+  destinationCity?: string;
+  shippingDate?: string;
   weight: number;
   pieces: number;
   commodity: string;
+  itemDescription?: string;
   flightNumber: string;
   scheduledDeparture: string;
   currentStatus: ShipmentStatus;
@@ -119,7 +125,7 @@ export const shipments: Record<string, Shipment> = {
     scheduledDeparture: '12 Apr 2026, 17:00 WIB',
     currentStatus: 'Loaded to Aircraft',
     tracking: [
-      { status: 'Received', timestamp: '12 Apr 2026, 09:30 WIB', location: 'CGK - Gudang Penerimaan, Terminal 2D', officer: 'Fajar Nugroho', note: 'Total 8 kolli spare parts diterima, dokumen lengkap' },
+      { status: 'Received', timestamp: '12 Apr 2026, 09:30 WIB', location: 'CGK - Gudang Penerimaan, Terminal 2D', officer: 'Fajar Nugroho', note: 'Total 8 barang spare parts diterima, dokumen lengkap' },
       { status: 'Sortation', timestamp: '12 Apr 2026, 11:00 WIB', location: 'CGK - Area Sortasi Utara', officer: 'Rina Marlina', note: 'Kargo disortasi sesuai rute UPG, penanganan heavy cargo' },
       { status: 'Loaded to Aircraft', timestamp: '12 Apr 2026, 15:30 WIB', location: 'CGK - Gate A3, Penerbangan GA-632', officer: 'Dedi Kurniawan', note: 'Kargo dimuat ke kompartmen kargo bawah, posisi dikonfirmasi' },
     ],
@@ -286,7 +292,7 @@ export const shipments: Record<string, Shipment> = {
     scheduledDeparture: '12 Apr 2026, 18:30 WIB',
     currentStatus: 'Sortation',
     tracking: [
-      { status: 'Received', timestamp: '12 Apr 2026, 13:00 WIB', location: 'CGK - Gudang Penerimaan, Terminal 3', officer: 'Indah Kusuma', note: 'Pakaian jadi diterima dalam 5 kolli' },
+      { status: 'Received', timestamp: '12 Apr 2026, 13:00 WIB', location: 'CGK - Gudang Penerimaan, Terminal 3', officer: 'Indah Kusuma', note: 'Pakaian jadi diterima dalam 5 barang' },
       { status: 'Sortation', timestamp: '12 Apr 2026, 15:00 WIB', location: 'CGK - Area Sortasi', officer: 'Budi Santoso', note: 'Sedang dalam proses sortasi untuk penerbangan GA-238' },
     ],
   },

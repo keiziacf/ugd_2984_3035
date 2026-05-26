@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import { AWBTrackingPage } from '@/components/pages/AWBTrackingPage';
 
 export default function TrackingDetailRoute() {
-  return <AWBTrackingPage />;
+  return (
+    <Suspense fallback={null}>
+      <AWBTrackingPage />
+    </Suspense>
+  );
 }

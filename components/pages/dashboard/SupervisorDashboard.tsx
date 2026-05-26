@@ -339,7 +339,7 @@ export function SupervisorDashboard() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={isDark ? 'text-slate-300' : 'text-slate-600'} style={{ fontSize: '0.8125rem' }}>
-                      {f.cargoCount} koli · {f.cargoWeight} kg
+                      {f.cargoCount} barang · {f.cargoWeight} kg
                     </span>
                   </td>
                 </tr>

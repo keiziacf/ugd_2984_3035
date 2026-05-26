@@ -177,7 +177,7 @@ export function FlightManagementPage() {
                 Daftar Penerbangan Hari Ini
               </h3>
               <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.8125rem' }}>
-                Minggu, 12 April 2026 — Total berat kargo: {totalWeight.toFixed(1)} kg ({totalCargo} kolli)
+                Minggu, 12 April 2026 — Total berat kargo: {totalWeight.toFixed(1)} kg ({totalCargo} barang)
               </p>
             </div>
             <div className="relative">
@@ -251,7 +251,7 @@ export function FlightManagementPage() {
                   'Jadwal',
                   'Aktual',
                   'Status',
-                  'Kargo (Kolli)',
+                  'Kargo (Barang)',
                   'Berat Total',
                 ].map((h) => (
                   <th
@@ -357,7 +357,7 @@ export function FlightManagementPage() {
                       <div className="flex items-center gap-1.5">
                         <Package size={14} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
                         <span className={isDark ? 'text-slate-300' : 'text-slate-600'} style={{ fontSize: '0.875rem' }}>
-                          {flight.cargoCount} kolli
+                          {flight.cargoCount} barang
                         </span>
                       </div>
                     </td>

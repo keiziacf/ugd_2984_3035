@@ -14,19 +14,19 @@ import { useCargo } from '@/context/CargoContext';
 import type { Shipment, ShipmentStatus } from '@/lib/mock-data';
 
 const AIRPORT_OPTIONS = [
-  { code: 'CGK', name: 'Soekarno-Hatta Jakarta' },
-  { code: 'SUB', name: 'Juanda Surabaya' },
-  { code: 'DPS', name: 'Ngurah Rai Bali' },
-  { code: 'UPG', name: 'Hasanuddin Makassar' },
-  { code: 'KNO', name: 'Kualanamu Medan' },
-  { code: 'BPN', name: 'Sultan Aji Muhammad Sulaiman' },
-  { code: 'SOC', name: 'Adi Soemarmo Solo' },
-  { code: 'JOG', name: 'Adisutjipto Yogyakarta' },
-  { code: 'PLM', name: 'SMB II Palembang' },
-  { code: 'SRG', name: 'Ahmad Yani Semarang' },
-  { code: 'HLP', name: 'Halim Perdanakusuma' },
-  { code: 'PNK', name: 'Supadio Pontianak' },
-  { code: 'BDJ', name: 'Syamsudin Noor Banjarmasin' },
+  { code: 'CGK', name: 'Soekarno-Hatta Jakarta', city: 'Jakarta' },
+  { code: 'SUB', name: 'Juanda Surabaya', city: 'Surabaya' },
+  { code: 'DPS', name: 'Ngurah Rai Bali', city: 'Denpasar' },
+  { code: 'UPG', name: 'Hasanuddin Makassar', city: 'Makassar' },
+  { code: 'KNO', name: 'Kualanamu Medan', city: 'Medan' },
+  { code: 'BPN', name: 'Sultan Aji Muhammad Sulaiman', city: 'Balikpapan' },
+  { code: 'SOC', name: 'Adi Soemarmo Solo', city: 'Solo' },
+  { code: 'JOG', name: 'Adisutjipto Yogyakarta', city: 'Yogyakarta' },
+  { code: 'PLM', name: 'SMB II Palembang', city: 'Palembang' },
+  { code: 'SRG', name: 'Ahmad Yani Semarang', city: 'Semarang' },
+  { code: 'HLP', name: 'Halim Perdanakusuma', city: 'Jakarta' },
+  { code: 'PNK', name: 'Supadio Pontianak', city: 'Pontianak' },
+  { code: 'BDJ', name: 'Syamsudin Noor Banjarmasin', city: 'Banjarmasin' },
 ];
 
 const STATUS_OPTIONS: ShipmentStatus[] = [
@@ -45,7 +45,7 @@ const STATUS_LABELS: Record<ShipmentStatus, string> = {
   Arrived: 'Tiba di Tujuan',
 };
 
-const COMMODITY_OPTIONS = [
+const ITEM_TYPE_OPTIONS = [
   'Dokumen', 'Dokumen Keuangan', 'Dokumen Penting',
   'Elektronik', 'Mesin Industri', 'Suku Cadang Industri',
   'Obat-obatan', 'Pakaian Jadi', 'Perhiasan',
@@ -54,15 +54,60 @@ const COMMODITY_OPTIONS = [
   'Perlengkapan Hotel', 'Lainnya',
 ];
 
+function getTodayDateInput() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+function getAirportCity(code: string) {
+  return AIRPORT_OPTIONS.find((airport) => airport.code === code)?.city ?? '';
+}
+
+function getDateInputFromDisplayDate(value: string) {
+  const match = value.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (!match) return '';
+
+  const monthMap: Record<string, string> = {
+    Jan: '01',
+    Feb: '02',
+    Mar: '03',
+    Apr: '04',
+    Mei: '05',
+    Jun: '06',
+    Jul: '07',
+    Agt: '08',
+    Sep: '09',
+    Okt: '10',
+    Nov: '11',
+    Des: '12',
+  };
+  const [, day, month, year] = match;
+  const monthNumber = monthMap[month];
+  if (!monthNumber) return '';
+
+  return `${year}-${monthNumber}-${day.padStart(2, '0')}`;
+}
+
+function isValidPhone(value: string) {
+  return /^[+\d][\d\s-]{7,17}$/.test(value.trim());
+}
+
 interface FormState {
   awb: string;
   shipper: string;
+  shipperPhone: string;
   consignee: string;
+  consigneePhone: string;
   commodity: string;
   originCode: string;
+  originCity: string;
   destinationCode: string;
+  destinationCity: string;
+  shippingDate: string;
   weight: string;
   pieces: string;
+  itemDescription: string;
   flightNumber: string;
   scheduledDeparture: string;
   currentStatus: ShipmentStatus;
@@ -72,12 +117,18 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   awb: '',
   shipper: '',
+  shipperPhone: '',
   consignee: '',
+  consigneePhone: '',
   commodity: '',
   originCode: '',
+  originCity: '',
   destinationCode: '',
+  destinationCity: '',
+  shippingDate: '',
   weight: '',
   pieces: '',
+  itemDescription: '',
   flightNumber: '',
   scheduledDeparture: '',
   currentStatus: 'Received',
@@ -109,19 +160,25 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
         setForm({
           awb: shipment.awb,
           shipper: shipment.shipper,
+          shipperPhone: shipment.shipperPhone ?? '',
           consignee: shipment.consignee,
+          consigneePhone: shipment.consigneePhone ?? '',
           commodity: shipment.commodity,
           originCode: shipment.origin.code,
+          originCity: shipment.originCity ?? getAirportCity(shipment.origin.code),
           destinationCode: shipment.destination.code,
+          destinationCity: shipment.destinationCity ?? getAirportCity(shipment.destination.code),
+          shippingDate: shipment.shippingDate ?? getDateInputFromDisplayDate(shipment.scheduledDeparture),
           weight: String(shipment.weight),
           pieces: String(shipment.pieces),
+          itemDescription: shipment.itemDescription ?? '',
           flightNumber: shipment.flightNumber,
           scheduledDeparture: shipment.scheduledDeparture,
           currentStatus: shipment.currentStatus,
           statusNote: '',
         });
       } else if (mode === 'create') {
-        setForm({ ...EMPTY_FORM, awb: generateAWB() });
+        setForm({ ...EMPTY_FORM, awb: generateAWB(), shippingDate: getTodayDateInput() });
       }
 
       setErrors({});
@@ -134,6 +191,16 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }));
   }
 
+  function handleOriginAirportChange(value: string) {
+    setForm((prev) => ({ ...prev, originCode: value, originCity: getAirportCity(value) }));
+    setErrors((prev) => ({ ...prev, originCode: '', originCity: '' }));
+  }
+
+  function handleDestinationAirportChange(value: string) {
+    setForm((prev) => ({ ...prev, destinationCode: value, destinationCity: getAirportCity(value) }));
+    setErrors((prev) => ({ ...prev, destinationCode: '', destinationCity: '' }));
+  }
+
   function validate(): boolean {
     const e: FormErrors = {};
     if (!form.awb.trim()) e.awb = 'Nomor AWB wajib diisi.';
@@ -141,19 +208,26 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
       if (!form.awb.trim().toUpperCase().startsWith('AT-')) e.awb = 'Format AWB harus dimulai dengan AT-.';
     }
     if (!form.shipper.trim()) e.shipper = 'Nama pengirim wajib diisi.';
+    if (!form.shipperPhone.trim()) e.shipperPhone = 'Nomor telepon pengirim wajib diisi.';
+    else if (!isValidPhone(form.shipperPhone)) e.shipperPhone = 'Format nomor telepon pengirim tidak valid.';
     if (!form.consignee.trim()) e.consignee = 'Nama penerima wajib diisi.';
-    if (!form.commodity.trim()) e.commodity = 'Jenis komoditas wajib diisi.';
+    if (!form.consigneePhone.trim()) e.consigneePhone = 'Nomor telepon penerima wajib diisi.';
+    else if (!isValidPhone(form.consigneePhone)) e.consigneePhone = 'Format nomor telepon penerima tidak valid.';
+    if (!form.commodity.trim()) e.commodity = 'Jenis barang wajib diisi.';
     if (!form.originCode) e.originCode = 'Bandara asal wajib dipilih.';
+    if (!form.originCity.trim()) e.originCity = 'Kota asal wajib diisi.';
     if (!form.destinationCode) e.destinationCode = 'Bandara tujuan wajib dipilih.';
+    if (!form.destinationCity.trim()) e.destinationCity = 'Kota tujuan wajib diisi.';
     if (form.originCode && form.destinationCode && form.originCode === form.destinationCode) {
       e.destinationCode = 'Bandara tujuan harus berbeda dari asal.';
     }
+    if (!form.shippingDate.trim()) e.shippingDate = 'Tanggal kirim wajib diisi.';
     const w = parseFloat(form.weight);
     if (!form.weight.trim()) e.weight = 'Berat wajib diisi.';
     else if (isNaN(w) || w <= 0) e.weight = 'Berat harus lebih dari 0 kg.';
     const p = parseInt(form.pieces);
-    if (!form.pieces.trim()) e.pieces = 'Jumlah koli wajib diisi.';
-    else if (isNaN(p) || p <= 0 || !Number.isInteger(p)) e.pieces = 'Jumlah koli harus bilangan bulat positif.';
+    if (!form.pieces.trim()) e.pieces = 'Jumlah barang wajib diisi.';
+    else if (isNaN(p) || p <= 0 || !Number.isInteger(p)) e.pieces = 'Jumlah barang harus bilangan bulat positif.';
     if (!form.flightNumber.trim()) e.flightNumber = 'Nomor penerbangan wajib diisi.';
     if (!form.scheduledDeparture.trim()) e.scheduledDeparture = 'Jadwal keberangkatan wajib diisi.';
     setErrors(e);
@@ -177,14 +251,20 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
         {
           awb: form.awb.trim().toUpperCase(),
           shipper: form.shipper,
+          shipperPhone: form.shipperPhone,
           consignee: form.consignee,
+          consigneePhone: form.consigneePhone,
           commodity: form.commodity,
           originCode: form.originCode,
           originName: originAirport?.name ?? form.originCode,
+          originCity: form.originCity,
           destinationCode: form.destinationCode,
           destinationName: destAirport?.name ?? form.destinationCode,
+          destinationCity: form.destinationCity,
+          shippingDate: form.shippingDate,
           weight: parseFloat(form.weight),
           pieces: parseInt(form.pieces),
+          itemDescription: form.itemDescription,
           flightNumber: form.flightNumber,
           scheduledDeparture: form.scheduledDeparture,
           currentStatus: form.currentStatus,
@@ -202,14 +282,20 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
         shipment.awb,
         {
           shipper: form.shipper,
+          shipperPhone: form.shipperPhone,
           consignee: form.consignee,
+          consigneePhone: form.consigneePhone,
           commodity: form.commodity,
           originCode: form.originCode,
           originName: originAirport?.name ?? form.originCode,
+          originCity: form.originCity,
           destinationCode: form.destinationCode,
           destinationName: destAirport?.name ?? form.destinationCode,
+          destinationCity: form.destinationCity,
+          shippingDate: form.shippingDate,
           weight: parseFloat(form.weight),
           pieces: parseInt(form.pieces),
+          itemDescription: form.itemDescription,
           flightNumber: form.flightNumber,
           scheduledDeparture: form.scheduledDeparture,
           currentStatus: form.currentStatus,
@@ -254,7 +340,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 16 }}
           transition={{ type: 'spring', damping: 22, stiffness: 300 }}
-          className={`w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border shadow-2xl ${
+          className={`w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl border shadow-2xl ${
             isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -326,7 +412,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                 >
                   Identifikasi Kargo
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* AWB */}
                   <div>
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
@@ -352,7 +438,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                   {/* Commodity */}
                   <div>
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                      Jenis Komoditas <span className="text-red-500">*</span>
+                      Jenis Barang <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <select
@@ -361,14 +447,29 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                         className={`${inputBase} appearance-none pr-8 ${errors.commodity ? 'border-red-500' : ''}`}
                         style={{ fontSize: '0.875rem' }}
                       >
-                        <option value="">Pilih komoditas...</option>
-                        {COMMODITY_OPTIONS.map((c) => (
+                        <option value="">Pilih jenis barang...</option>
+                        {ITEM_TYPE_OPTIONS.map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>
                       <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-400'}`} />
                     </div>
                     {errors.commodity && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.commodity}</p>}
+                  </div>
+
+                  {/* Shipping Date */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Tanggal Kirim <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={form.shippingDate}
+                      onChange={(e) => set('shippingDate', e.target.value)}
+                      className={`${inputBase} ${errors.shippingDate ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.shippingDate && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.shippingDate}</p>}
                   </div>
                 </div>
               </div>
@@ -398,6 +499,20 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                   </div>
                   <div>
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Telepon Pengirim <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.shipperPhone}
+                      onChange={(e) => set('shipperPhone', e.target.value)}
+                      placeholder="081234567890"
+                      className={`${inputBase} ${errors.shipperPhone ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.shipperPhone && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.shipperPhone}</p>}
+                  </div>
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
                       Nama Penerima (Consignee) <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -409,6 +524,20 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                       style={{ fontSize: '0.875rem' }}
                     />
                     {errors.consignee && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.consignee}</p>}
+                  </div>
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Telepon Penerima <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.consigneePhone}
+                      onChange={(e) => set('consigneePhone', e.target.value)}
+                      placeholder="081234567890"
+                      className={`${inputBase} ${errors.consigneePhone ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.consigneePhone && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.consigneePhone}</p>}
                   </div>
                 </div>
               </div>
@@ -430,7 +559,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                     <div className="relative">
                       <select
                         value={form.originCode}
-                        onChange={(e) => set('originCode', e.target.value)}
+                        onChange={(e) => handleOriginAirportChange(e.target.value)}
                         className={`${inputBase} appearance-none pr-8 ${errors.originCode ? 'border-red-500' : ''}`}
                         style={{ fontSize: '0.875rem' }}
                       >
@@ -454,7 +583,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                     <div className="relative">
                       <select
                         value={form.destinationCode}
-                        onChange={(e) => set('destinationCode', e.target.value)}
+                        onChange={(e) => handleDestinationAirportChange(e.target.value)}
                         className={`${inputBase} appearance-none pr-8 ${errors.destinationCode ? 'border-red-500' : ''}`}
                         style={{ fontSize: '0.875rem' }}
                       >
@@ -468,6 +597,38 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                     </div>
                     {errors.destinationCode && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.destinationCode}</p>}
+                  </div>
+
+                  {/* Origin City */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Kota Asal <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.originCity}
+                      onChange={(e) => set('originCity', e.target.value)}
+                      placeholder="Jakarta"
+                      className={`${inputBase} ${errors.originCity ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.originCity && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.originCity}</p>}
+                  </div>
+
+                  {/* Destination City */}
+                  <div>
+                    <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                      Kota Tujuan <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.destinationCity}
+                      onChange={(e) => set('destinationCity', e.target.value)}
+                      placeholder="Surabaya"
+                      className={`${inputBase} ${errors.destinationCity ? 'border-red-500' : ''}`}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    {errors.destinationCity && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.destinationCity}</p>}
                   </div>
 
                   {/* Flight Number */}
@@ -510,7 +671,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                   className={`mb-3 pb-2 border-b ${isDark ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-slate-100'}`}
                   style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
                 >
-                  Detail Fisik Kargo
+                  Detail Barang
                 </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -531,7 +692,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                   </div>
                   <div>
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                      Jumlah Koli <span className="text-red-500">*</span>
+                      Jumlah Barang <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -545,6 +706,19 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                     />
                     {errors.pieces && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.pieces}</p>}
                   </div>
+                </div>
+                <div className="mt-4">
+                  <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                    Deskripsi / Catatan Barang
+                  </label>
+                  <textarea
+                    value={form.itemDescription}
+                    onChange={(e) => set('itemDescription', e.target.value)}
+                    placeholder="Contoh: barang mudah pecah, perlu penanganan khusus, isi paket, atau catatan tambahan"
+                    rows={3}
+                    className={`${inputBase} resize-none`}
+                    style={{ fontSize: '0.875rem' }}
+                  />
                 </div>
               </div>
 

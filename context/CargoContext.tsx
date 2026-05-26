@@ -11,14 +11,20 @@ import type { Shipment, ShipmentStatus, TrackingEvent } from '@/lib/mock-data';
 export interface CargoFormData {
   awb: string;
   shipper: string;
+  shipperPhone: string;
   consignee: string;
+  consigneePhone: string;
   commodity: string;
   originCode: string;
   originName: string;
+  originCity: string;
   destinationCode: string;
   destinationName: string;
+  destinationCity: string;
+  shippingDate: string;
   weight: number;
   pieces: number;
+  itemDescription: string;
   flightNumber: string;
   scheduledDeparture: string;
   currentStatus: ShipmentStatus;
@@ -125,12 +131,18 @@ export function CargoProvider({ children }: { children: ReactNode }) {
       const newShipment: Shipment = {
         awb: data.awb.toUpperCase(),
         shipper: data.shipper.trim(),
+        shipperPhone: data.shipperPhone.trim(),
         consignee: data.consignee.trim(),
+        consigneePhone: data.consigneePhone.trim(),
         origin: { code: data.originCode, name: data.originName },
+        originCity: data.originCity.trim(),
         destination: { code: data.destinationCode, name: data.destinationName },
+        destinationCity: data.destinationCity.trim(),
+        shippingDate: data.shippingDate,
         weight: data.weight,
         pieces: data.pieces,
         commodity: data.commodity,
+        itemDescription: data.itemDescription.trim(),
         flightNumber: data.flightNumber.toUpperCase().trim(),
         scheduledDeparture: data.scheduledDeparture,
         currentStatus: data.currentStatus,
@@ -173,18 +185,24 @@ export function CargoProvider({ children }: { children: ReactNode }) {
           const updated: Shipment = {
             ...s,
             shipper: data.shipper?.trim() ?? s.shipper,
+            shipperPhone: data.shipperPhone?.trim() ?? s.shipperPhone,
             consignee: data.consignee?.trim() ?? s.consignee,
+            consigneePhone: data.consigneePhone?.trim() ?? s.consigneePhone,
             weight: data.weight ?? s.weight,
             pieces: data.pieces ?? s.pieces,
             commodity: data.commodity ?? s.commodity,
+            itemDescription: data.itemDescription?.trim() ?? s.itemDescription,
+            shippingDate: data.shippingDate ?? s.shippingDate,
             flightNumber: data.flightNumber?.toUpperCase().trim() ?? s.flightNumber,
             scheduledDeparture: data.scheduledDeparture ?? s.scheduledDeparture,
             origin: data.originCode
               ? { code: data.originCode, name: data.originName ?? s.origin.name }
               : s.origin,
+            originCity: data.originCity?.trim() ?? s.originCity,
             destination: data.destinationCode
               ? { code: data.destinationCode, name: data.destinationName ?? s.destination.name }
               : s.destination,
+            destinationCity: data.destinationCity?.trim() ?? s.destinationCity,
           };
 
           // If status changed → append tracking event

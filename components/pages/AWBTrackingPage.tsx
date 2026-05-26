@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import type { KeyboardEvent } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -42,6 +42,29 @@ const STATUS_COLOR: Record<ShipmentStatus, { bg: string; text: string; ring: str
   'Departed': { bg: 'bg-indigo-500', text: 'text-indigo-500', ring: 'ring-indigo-100' },
   'Arrived': { bg: 'bg-green-500', text: 'text-green-500', ring: 'ring-green-100' },
 };
+
+function formatShippingDate(value?: string) {
+  if (!value) return '-';
+
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function shipmentMatchesQuery(shipment: Shipment, query: string) {
+  const q = query.trim().toLowerCase();
+  return (
+    shipment.awb.toLowerCase().includes(q) ||
+    shipment.shipper.toLowerCase().includes(q) ||
+    shipment.consignee.toLowerCase().includes(q) ||
+    shipment.commodity.toLowerCase().includes(q)
+  );
+}
 
 function TrackingTimeline({ shipment }: { shipment: Shipment }) {
   const { isDark } = useApp();
@@ -268,10 +291,13 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
           <div className="space-y-3">
             {[
               { label: 'Pengirim', value: shipment.shipper },
+              { label: 'Telepon Pengirim', value: shipment.shipperPhone ?? '-' },
               { label: 'Penerima', value: shipment.consignee },
-              { label: 'Komoditi', value: shipment.commodity },
+              { label: 'Telepon Penerima', value: shipment.consigneePhone ?? '-' },
+              { label: 'Jenis Barang', value: shipment.commodity },
+              { label: 'Tanggal Kirim', value: formatShippingDate(shipment.shippingDate) },
               { label: 'Berat', value: `${shipment.weight} kg` },
-              { label: 'Jumlah Kolli', value: `${shipment.pieces} koli` },
+              { label: 'Jumlah Barang', value: `${shipment.pieces} barang` },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between gap-4">
                 <span className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.875rem' }}>
@@ -285,6 +311,21 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
                 </span>
               </div>
             ))}
+            {shipment.itemDescription && (
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex items-start gap-2">
+                  <FileText size={14} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
+                  <div>
+                    <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.8125rem' }}>
+                      Deskripsi / Catatan Barang
+                    </p>
+                    <p className={isDark ? 'text-slate-300' : 'text-slate-600'} style={{ fontSize: '0.875rem' }}>
+                      {shipment.itemDescription}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -295,7 +336,7 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
           <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-blue-600 text-white">
             <div className="text-center">
               <p style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'monospace' }}>{shipment.origin.code}</p>
-              <p style={{ fontSize: '0.6875rem', opacity: 0.8 }}>{shipment.origin.name}</p>
+              <p style={{ fontSize: '0.6875rem', opacity: 0.8 }}>{shipment.originCity ?? shipment.origin.name}</p>
             </div>
             <div className="flex-1 flex items-center">
               <div className="flex-1 border-t-2 border-dashed border-white/40" />
@@ -304,11 +345,13 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
             </div>
             <div className="text-center">
               <p style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'monospace' }}>{shipment.destination.code}</p>
-              <p style={{ fontSize: '0.6875rem', opacity: 0.8 }}>{shipment.destination.name}</p>
+              <p style={{ fontSize: '0.6875rem', opacity: 0.8 }}>{shipment.destinationCity ?? shipment.destination.name}</p>
             </div>
           </div>
           <div className="space-y-3">
             {[
+              { label: 'Kota Asal', value: shipment.originCity ?? shipment.origin.name },
+              { label: 'Kota Tujuan', value: shipment.destinationCity ?? shipment.destination.name },
               { label: 'No. Penerbangan', value: shipment.flightNumber },
               { label: 'Jadwal Berangkat', value: shipment.scheduledDeparture },
             ].map(({ label, value }) => (
@@ -337,7 +380,7 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
   );
 }
 
-function AWBNotFound({ awb, onReset }: { awb: string; onReset: () => void }) {
+function AWBNotFound({ query, onReset }: { query: string; onReset: () => void }) {
   const { isDark } = useApp();
   return (
     <motion.div
@@ -352,12 +395,12 @@ function AWBNotFound({ awb, onReset }: { awb: string; onReset: () => void }) {
       }`}>
         <AlertCircle size={32} className="text-amber-500" />
       </div>
-      <h2 className={`mb-2 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>AWB Tidak Ditemukan</h2>
+      <h2 className={`mb-2 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Data Tidak Ditemukan</h2>
       <p className={`mb-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} style={{ fontSize: '0.875rem' }}>
-        Nomor AWB <span className="font-mono font-semibold">{awb}</span> tidak ditemukan dalam sistem kami.
+        Kata kunci <span className="font-semibold">{query}</span> tidak ditemukan dalam sistem kami.
       </p>
       <p className={`mb-6 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.875rem' }}>
-        Pastikan nomor yang Anda masukkan sudah benar.
+        Pastikan nomor AWB, nama pengirim, nama penerima, atau nama barang yang dimasukkan sudah benar.
       </p>
       <div className={`text-left rounded-lg p-4 mb-6 ${isDark ? 'bg-slate-700/50' : 'bg-slate-50'}`}>
         <p className={`mb-2 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
@@ -365,10 +408,10 @@ function AWBNotFound({ awb, onReset }: { awb: string; onReset: () => void }) {
         </p>
         <ul className="space-y-1">
           {[
-            'Nomor AWB tidak valid atau salah ketik',
+            'Nomor AWB atau kata kunci salah ketik',
             'Data kargo belum terinput dalam sistem',
             'Kargo baru saja masuk — coba beberapa menit lagi',
-            'AWB mungkin sudah kadaluarsa dari periode ini',
+            'Data mungkin berada di periode lain',
           ].map((item) => (
             <li key={item} className="flex items-start gap-2">
               <span className="text-blue-500 mt-0.5 flex-shrink-0" style={{ fontSize: '0.875rem' }}>•</span>
@@ -384,7 +427,7 @@ function AWBNotFound({ awb, onReset }: { awb: string; onReset: () => void }) {
         className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
         style={{ fontSize: '0.875rem', fontWeight: 500 }}
       >
-        <Search size={16} /> Coba Nomor AWB Lain
+        <Search size={16} /> Cari Data Lain
       </button>
       <p className={`mt-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.8125rem' }}>
         Butuh bantuan? Hubungi supervisor Anda atau hubungi{' '}
@@ -394,67 +437,170 @@ function AWBNotFound({ awb, onReset }: { awb: string; onReset: () => void }) {
   );
 }
 
+function ShipmentSearchResults({
+  query,
+  shipments,
+  onSelect,
+}: {
+  query: string;
+  shipments: Shipment[];
+  onSelect: (shipment: Shipment) => void;
+}) {
+  const { isDark } = useApp();
+  const cardBase = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-xl border p-5 ${cardBase}`}
+    >
+      <div className="mb-4">
+        <h3 className={isDark ? 'text-slate-200' : 'text-slate-800'}>
+          {shipments.length} data ditemukan
+        </h3>
+        <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.875rem' }}>
+          Hasil pencarian untuk <span className="font-semibold">{query}</span>
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {shipments.map((shipment) => (
+          <button
+            key={shipment.awb}
+            type="button"
+            onClick={() => onSelect(shipment)}
+            className={`w-full rounded-lg border p-4 text-left transition-colors ${
+              isDark
+                ? 'border-slate-700 bg-slate-700/30 hover:border-blue-600 hover:bg-slate-700/60'
+                : 'border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/40'
+            }`}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`font-mono ${isDark ? 'text-blue-400' : 'text-blue-600'}`}
+                    style={{ fontSize: '0.875rem', fontWeight: 700 }}
+                  >
+                    {shipment.awb}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 ${
+                      isDark ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-600'
+                    }`}
+                    style={{ fontSize: '0.75rem', fontWeight: 600 }}
+                  >
+                    {shipment.commodity}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className={isDark ? 'text-slate-300' : 'text-slate-700'} style={{ fontSize: '0.875rem' }}>
+                    {shipment.shipper}
+                  </span>
+                  <ArrowRight size={14} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
+                  <span className={isDark ? 'text-slate-300' : 'text-slate-700'} style={{ fontSize: '0.875rem' }}>
+                    {shipment.consignee}
+                  </span>
+                </div>
+                <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.8125rem' }}>
+                  {(shipment.originCity ?? shipment.origin.code)} ke {(shipment.destinationCity ?? shipment.destination.code)} · {shipment.pieces} barang
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                Lihat tracking
+                <ArrowRight size={15} />
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 export function AWBTrackingPage() {
   const params = useParams<{ awb?: string | string[] }>();
   const awbParam = Array.isArray(params.awb) ? params.awb[0] : params.awb;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isDark } = useApp();
   const { shipments: cargoShipments } = useCargo();
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchParam = searchParams.get('q') ?? '';
+  const activeQuery = awbParam ?? searchParam;
 
-  const findShipment = useCallback((awbKey: string): Shipment | undefined => {
-    return cargoShipments.find(
-      (s) => s.awb.toUpperCase() === awbKey.toUpperCase()
-    );
+  const findShipments = useCallback((query: string): Shipment[] => {
+    const q = query.trim();
+    if (!q) return [];
+
+    return cargoShipments
+      .filter((shipment) => shipmentMatchesQuery(shipment, q))
+      .sort((a, b) => {
+        const exactA = a.awb.toLowerCase() === q.toLowerCase();
+        const exactB = b.awb.toLowerCase() === q.toLowerCase();
+        if (exactA === exactB) return a.awb.localeCompare(b.awb);
+        return exactA ? -1 : 1;
+      });
   }, [cargoShipments]);
 
-  const [searchValue, setSearchValue] = useState(awbParam ?? '');
-  const [result, setResult] = useState<Shipment | null | undefined>(
-    awbParam ? (findShipment(awbParam) ?? null) : undefined
+  const [searchValue, setSearchValue] = useState(activeQuery);
+  const [results, setResults] = useState<Shipment[] | null | undefined>(
+    activeQuery ? (() => {
+      const found = findShipments(activeQuery);
+      return found.length > 0 ? found : null;
+    })() : undefined
   );
-  const [searched, setSearched] = useState(Boolean(awbParam));
+  const [searched, setSearched] = useState(Boolean(activeQuery));
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => {
-      if (!awbParam) {
+      if (!activeQuery) {
         setSearchValue('');
-        setResult(undefined);
+        setResults(undefined);
         setSearched(false);
         return;
       }
 
-      setSearchValue(awbParam);
-      setResult(findShipment(awbParam) ?? null);
+      const found = findShipments(activeQuery);
+      setSearchValue(activeQuery);
+      setResults(found.length > 0 ? found : null);
       setSearched(true);
     });
-  }, [awbParam, findShipment]);
+  }, [activeQuery, findShipments]);
 
   const handleSearch = async () => {
     if (!searchValue.trim()) return;
+    const query = searchValue.trim();
     setIsLoading(true);
     setSearched(false);
     await new Promise((r) => setTimeout(r, 600));
-    const found = findShipment(searchValue.trim());
-    setResult(found ?? null);
+    const found = findShipments(query);
+    const exactAwb = found.find((shipment) => shipment.awb.toLowerCase() === query.toLowerCase());
+    setResults(found.length > 0 ? found : null);
     setSearched(true);
     setIsLoading(false);
-    router.replace(`/tracking/${searchValue.trim().toUpperCase()}`);
+    if (exactAwb) {
+      router.replace(`/tracking/${exactAwb.awb}`);
+    } else {
+      router.replace(`/tracking?q=${encodeURIComponent(query)}`);
+    }
   };
 
   const handleReset = () => {
     setSearchValue('');
-    setResult(undefined);
+    setResults(undefined);
     setSearched(false);
     router.replace('/tracking');
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   useEffect(() => {
-    if (!awbParam) {
+    if (!activeQuery) {
       inputRef.current?.focus();
     }
-  }, [awbParam]);
+  }, [activeQuery]);
 
   // Keyboard: Enter to search
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -474,7 +620,7 @@ export function AWBTrackingPage() {
           <div>
             <h2 className={`${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Pelacakan Airway Bill (AWB)</h2>
             <p className={`${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.875rem' }}>
-              Masukkan nomor AWB untuk melihat status dan riwayat pengiriman kargo
+              Cari berdasarkan nomor AWB, nama pengirim, nama penerima, atau nama barang
             </p>
           </div>
         </div>
@@ -489,10 +635,10 @@ export function AWBTrackingPage() {
               ref={inputRef}
               type="text"
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
+              onChange={(e) => setSearchValue(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Contoh: EP-2604120001"
-              className={`w-full pl-10 pr-10 py-3 rounded-lg border font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+              placeholder="Cari AWB, pengirim, penerima, atau nama barang"
+              className={`w-full pl-10 pr-10 py-3 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
                 isDark
                   ? 'bg-slate-700 border-slate-600 text-slate-200 placeholder-slate-500'
                   : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400'
@@ -525,27 +671,6 @@ export function AWBTrackingPage() {
             )}
           </button>
         </div>
-
-        {/* Quick example AWBs */}
-        <div className="mt-3 flex flex-wrap gap-2 items-center">
-          <span className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.75rem' }}>
-            Coba contoh:
-          </span>
-          {['AT-2604120001', 'AT-2604120003', 'AT-2604120006'].map((ex) => (
-            <button
-              key={ex}
-              onClick={() => setSearchValue(ex)}
-              className={`px-2.5 py-0.5 rounded border font-mono transition-colors ${
-                isDark
-                  ? 'border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-400'
-                  : 'border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600'
-              }`}
-              style={{ fontSize: '0.75rem' }}
-            >
-              {ex}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Loading Skeleton */}
@@ -569,11 +694,19 @@ export function AWBTrackingPage() {
 
       {/* Results */}
       <AnimatePresence>
-        {!isLoading && searched && result && (
-          <ShipmentDetail key={result.awb} shipment={result} />
+        {!isLoading && searched && Array.isArray(results) && results.length === 1 && (
+          <ShipmentDetail key={results[0].awb} shipment={results[0]} />
         )}
-        {!isLoading && searched && result === null && (
-          <AWBNotFound key="notfound" awb={searchValue} onReset={handleReset} />
+        {!isLoading && searched && Array.isArray(results) && results.length > 1 && (
+          <ShipmentSearchResults
+            key="results"
+            query={searchValue}
+            shipments={results}
+            onSelect={(shipment) => router.push(`/tracking/${shipment.awb}`)}
+          />
+        )}
+        {!isLoading && searched && results === null && (
+          <AWBNotFound key="notfound" query={searchValue} onReset={handleReset} />
         )}
       </AnimatePresence>
 
@@ -588,10 +721,10 @@ export function AWBTrackingPage() {
         >
           <PackageSearch size={44} className={`mx-auto mb-3 ${isDark ? 'text-slate-600' : 'text-slate-300'}`} />
           <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.875rem' }}>
-            Masukkan nomor AWB di atas untuk mulai melacak kargo Anda
+            Masukkan nomor AWB, nama pengirim, nama penerima, atau nama barang untuk mulai melacak
           </p>
           <p className={isDark ? 'text-slate-600' : 'text-slate-300'} style={{ fontSize: '0.8125rem' }}>
-            Format: AT-XXXXXXXXXX
+            Pencarian akan menampilkan data kargo yang paling sesuai
           </p>
         </motion.div>
       )}

@@ -53,7 +53,7 @@ type TaskItem = {
 };
 
 const INITIAL_TASKS: TaskItem[] = [
-  { id: 1, task: 'Scan dan terima 12 koli dari GA-632', status: 'pending', priority: 'high', time: '14:00', href: '/cargo?q=GA-632' },
+  { id: 1, task: 'Scan dan terima 12 barang dari GA-632', status: 'pending', priority: 'high', time: '14:00', href: '/cargo?q=GA-632' },
   { id: 2, task: 'Update status sortasi AT-2604120012', status: 'pending', priority: 'normal', time: '15:30', href: '/tracking/AT-2604120012' },
   { id: 3, task: 'Koordinasi muat QG-973 di Gate A2', status: 'done', priority: 'normal', time: '13:00', href: '/cargo?q=QG-973' },
   { id: 4, task: 'Verifikasi manifest JT-539', status: 'done', priority: 'high', time: '12:30', href: '/cargo?q=JT-539' },

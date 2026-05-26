@@ -130,7 +130,9 @@ export function CargoPage() {
           s.shipper.toLowerCase().includes(q) ||
           s.consignee.toLowerCase().includes(q) ||
           s.flightNumber.toLowerCase().includes(q) ||
-          s.commodity.toLowerCase().includes(q)
+          s.commodity.toLowerCase().includes(q) ||
+          (s.originCity ?? '').toLowerCase().includes(q) ||
+          (s.destinationCity ?? '').toLowerCase().includes(q)
       );
     }
 
@@ -371,7 +373,7 @@ export function CargoPage() {
               type="text"
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Cari AWB, pengirim, penerima, penerbangan..."
+              placeholder="Cari AWB, pengirim, penerima, nama barang..."
               className={`w-full pl-9 pr-4 py-2.5 rounded-xl border transition-colors outline-none ${
                 isDark
                   ? 'bg-slate-700 border-slate-600 text-slate-200 placeholder-slate-500 focus:border-blue-500'
@@ -468,7 +470,7 @@ export function CargoPage() {
                   { key: 'awb' as SortKey, label: 'Nomor AWB', w: 'w-36' },
                   { key: 'shipper' as SortKey, label: 'Pengirim', w: 'w-40' },
                   { key: null, label: 'Penerima', w: 'w-40' },
-                  { key: 'weight' as SortKey, label: 'Berat / Koli', w: 'w-28' },
+                  { key: 'weight' as SortKey, label: 'Berat / Barang', w: 'w-28' },
                   { key: 'destination' as SortKey, label: 'Rute', w: 'w-28' },
                   { key: null, label: 'Penerbangan', w: 'w-32' },
                   { key: 'status' as SortKey, label: 'Status', w: 'w-32' },
@@ -563,7 +565,7 @@ export function CargoPage() {
                             {ship.weight} kg
                           </p>
                           <p className={`${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.6875rem' }}>
-                            {ship.pieces} koli
+                            {ship.pieces} barang
                           </p>
                         </td>
 

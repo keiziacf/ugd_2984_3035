@@ -151,7 +151,7 @@ export function ReportsPage() {
           className={`xl:col-span-4 rounded-xl border p-5 ${cardBase}`}
         >
           <div className="mb-4">
-            <h3 className={isDark ? 'text-slate-200' : 'text-slate-800'}>Komoditi Kargo</h3>
+            <h3 className={isDark ? 'text-slate-200' : 'text-slate-800'}>Jenis Barang Kargo</h3>
             <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.8125rem' }}>
               Distribusi berdasarkan jenis
             </p>
