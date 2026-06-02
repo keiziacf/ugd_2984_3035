@@ -9,8 +9,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Aero Track Dashboard',
-  description: 'Professional cargo tracking dashboard built with Next.js.',
+  title: {
+    default: 'Aero Track',
+    template: '%s | Aero Track',
+  },
+  description: 'Sistem dashboard pelacakan dan manajemen kargo udara.',
 };
 
 export default function RootLayout({
