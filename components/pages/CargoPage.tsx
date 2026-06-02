@@ -218,9 +218,9 @@ export function CargoPage() {
     setTimeout(() => setToast(''), 4000);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deletingShipment) return;
-    const result = deleteShipment(deletingShipment.awb);
+    const result = await deleteShipment(deletingShipment.awb);
     if (!result.ok) {
       showToast(result.error ?? CRUD_DISABLED_MESSAGE, 'info');
       setDeletingShipment(null);

@@ -6,7 +6,7 @@ import {
   CRUD_DISABLED_MESSAGE,
 } from '@/lib/feature-flags';
 import { shipments as initialShipmentsMap } from '@/lib/mock-data';
-import type { Shipment, ShipmentStatus, TrackingEvent } from '@/lib/mock-data';
+import type { Shipment, ShipmentStatus } from '@/lib/mock-data';
 
 export interface CargoFormData {
   awb: string;
@@ -30,73 +30,86 @@ export interface CargoFormData {
   currentStatus: ShipmentStatus;
 }
 
+type OperationResult = { ok: boolean; error?: string };
+
 interface CargoContextType {
   shipments: Shipment[];
-  addShipment: (data: CargoFormData, officerName: string) => { ok: boolean; error?: string };
-  updateShipment: (awb: string, data: Partial<CargoFormData>, officerName: string) => { ok: boolean; error?: string };
-  deleteShipment: (awb: string) => { ok: boolean; error?: string };
+  cargoLoading: boolean;
+  cargoError: string;
+  reloadShipments: () => Promise<void>;
+  addShipment: (data: CargoFormData, officerName: string) => Promise<OperationResult>;
+  updateShipment: (awb: string, data: Partial<CargoFormData>, officerName: string) => Promise<OperationResult>;
+  deleteShipment: (awb: string) => Promise<OperationResult>;
   generateAWB: () => string;
 }
 
 const CargoContext = createContext<CargoContextType | null>(null);
-const CARGO_STORAGE_KEY = 'aero_track_shipments';
-
-function nowTimestamp(): string {
-  const now = new Date();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
-  const d = String(now.getDate()).padStart(2, '0');
-  const m = months[now.getMonth()];
-  const y = now.getFullYear();
-  const h = String(now.getHours()).padStart(2, '0');
-  const min = String(now.getMinutes()).padStart(2, '0');
-  return `${d} ${m} ${y}, ${h}:${min} WIB`;
-}
 
 function getInitialShipments(): Shipment[] {
   return Object.values(initialShipmentsMap);
 }
 
-function readStoredShipments(): Shipment[] | null {
-  if (typeof window === 'undefined') return null;
-
+async function readApiError(response: Response) {
   try {
-    const stored = window.localStorage.getItem(CARGO_STORAGE_KEY);
-    if (!stored) return null;
-
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) return null;
-
-    return parsed.filter((item): item is Shipment => {
-      return (
-        item &&
-        typeof item.awb === 'string' &&
-        typeof item.shipper === 'string' &&
-        typeof item.consignee === 'string' &&
-        typeof item.currentStatus === 'string' &&
-        Array.isArray(item.tracking)
-      );
-    });
+    const body = (await response.json()) as { error?: string; hint?: string };
+    return body.error ?? body.hint ?? `Request gagal dengan status ${response.status}.`;
   } catch {
-    return null;
+    return `Request gagal dengan status ${response.status}.`;
   }
+}
+
+function shipmentToFormData(shipment: Shipment): CargoFormData {
+  return {
+    awb: shipment.awb,
+    shipper: shipment.shipper,
+    shipperPhone: shipment.shipperPhone ?? '',
+    consignee: shipment.consignee,
+    consigneePhone: shipment.consigneePhone ?? '',
+    commodity: shipment.commodity,
+    originCode: shipment.origin.code,
+    originName: shipment.origin.name,
+    originCity: shipment.originCity ?? '',
+    destinationCode: shipment.destination.code,
+    destinationName: shipment.destination.name,
+    destinationCity: shipment.destinationCity ?? '',
+    shippingDate: shipment.shippingDate ?? '',
+    weight: shipment.weight,
+    pieces: shipment.pieces,
+    itemDescription: shipment.itemDescription ?? '',
+    flightNumber: shipment.flightNumber,
+    scheduledDeparture: shipment.scheduledDeparture,
+    currentStatus: shipment.currentStatus,
+  };
 }
 
 export function CargoProvider({ children }: { children: ReactNode }) {
   const [shipments, setShipments] = useState<Shipment[]>(getInitialShipments);
-  const [storageReady, setStorageReady] = useState(false);
+  const [cargoLoading, setCargoLoading] = useState(true);
+  const [cargoError, setCargoError] = useState('');
 
-  useEffect(() => {
-    const storedShipments = readStoredShipments();
-    if (storedShipments !== null) {
-      setShipments(storedShipments);
+  const reloadShipments = useCallback(async () => {
+    setCargoLoading(true);
+    setCargoError('');
+
+    try {
+      const response = await fetch('/api/cargo', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const body = (await response.json()) as { shipments?: Shipment[] };
+      setShipments(Array.isArray(body.shipments) ? body.shipments : []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal memuat data kargo dari database Neon.';
+      setCargoError(message);
+    } finally {
+      setCargoLoading(false);
     }
-    setStorageReady(true);
   }, []);
 
   useEffect(() => {
-    if (!storageReady) return;
-    window.localStorage.setItem(CARGO_STORAGE_KEY, JSON.stringify(shipments));
-  }, [shipments, storageReady]);
+    void reloadShipments();
+  }, [reloadShipments]);
 
   const generateAWB = useCallback((): string => {
     const now = new Date();
@@ -115,7 +128,7 @@ export function CargoProvider({ children }: { children: ReactNode }) {
   }, [shipments]);
 
   const addShipment = useCallback(
-    (data: CargoFormData, officerName: string): { ok: boolean; error?: string } => {
+    async (data: CargoFormData, officerName: string): Promise<OperationResult> => {
       if (CRUD_DISABLED) {
         return { ok: false, error: CRUD_DISABLED_MESSAGE };
       }
@@ -127,48 +140,39 @@ export function CargoProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: `AWB ${data.awb} sudah ada dalam sistem. Gunakan nomor AWB yang berbeda.` };
       }
 
-      const ts = nowTimestamp();
-      const newShipment: Shipment = {
-        awb: data.awb.toUpperCase(),
-        shipper: data.shipper.trim(),
-        shipperPhone: data.shipperPhone.trim(),
-        consignee: data.consignee.trim(),
-        consigneePhone: data.consigneePhone.trim(),
-        origin: { code: data.originCode, name: data.originName },
-        originCity: data.originCity.trim(),
-        destination: { code: data.destinationCode, name: data.destinationName },
-        destinationCity: data.destinationCity.trim(),
-        shippingDate: data.shippingDate,
-        weight: data.weight,
-        pieces: data.pieces,
-        commodity: data.commodity,
-        itemDescription: data.itemDescription.trim(),
-        flightNumber: data.flightNumber.toUpperCase().trim(),
-        scheduledDeparture: data.scheduledDeparture,
-        currentStatus: data.currentStatus,
-        tracking: [
-          {
-            status: data.currentStatus,
-            timestamp: ts,
-            location: `${data.originCode} - Gudang Penerimaan`,
-            officer: officerName,
-            note: `Kargo baru didaftarkan ke sistem oleh ${officerName}`,
-          },
-        ],
-      };
+      try {
+        const response = await fetch('/api/cargo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data, officerName }),
+        });
 
-      setShipments((prev) => [newShipment, ...prev]);
-      return { ok: true };
+        if (!response.ok) {
+          return { ok: false, error: await readApiError(response) };
+        }
+
+        const body = (await response.json()) as { shipment?: Shipment };
+        if (body.shipment) {
+          setShipments((prev) => [body.shipment as Shipment, ...prev]);
+        } else {
+          await reloadShipments();
+        }
+
+        return { ok: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Gagal menambahkan kargo ke database Neon.';
+        return { ok: false, error: message };
+      }
     },
-    [shipments]
+    [reloadShipments, shipments]
   );
 
   const updateShipment = useCallback(
-    (
+    async (
       awb: string,
       data: Partial<CargoFormData>,
       officerName: string
-    ): { ok: boolean; error?: string } => {
+    ): Promise<OperationResult> => {
       if (CRUD_DISABLED) {
         return { ok: false, error: CRUD_DISABLED_MESSAGE };
       }
@@ -178,71 +182,83 @@ export function CargoProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: `Kargo ${awb} tidak ditemukan.` };
       }
 
-      setShipments((prev) =>
-        prev.map((s) => {
-          if (s.awb !== awb) return s;
+      const payload: CargoFormData = {
+        ...shipmentToFormData(existing),
+        ...data,
+      };
 
-          const updated: Shipment = {
-            ...s,
-            shipper: data.shipper?.trim() ?? s.shipper,
-            shipperPhone: data.shipperPhone?.trim() ?? s.shipperPhone,
-            consignee: data.consignee?.trim() ?? s.consignee,
-            consigneePhone: data.consigneePhone?.trim() ?? s.consigneePhone,
-            weight: data.weight ?? s.weight,
-            pieces: data.pieces ?? s.pieces,
-            commodity: data.commodity ?? s.commodity,
-            itemDescription: data.itemDescription?.trim() ?? s.itemDescription,
-            shippingDate: data.shippingDate ?? s.shippingDate,
-            flightNumber: data.flightNumber?.toUpperCase().trim() ?? s.flightNumber,
-            scheduledDeparture: data.scheduledDeparture ?? s.scheduledDeparture,
-            origin: data.originCode
-              ? { code: data.originCode, name: data.originName ?? s.origin.name }
-              : s.origin,
-            originCity: data.originCity?.trim() ?? s.originCity,
-            destination: data.destinationCode
-              ? { code: data.destinationCode, name: data.destinationName ?? s.destination.name }
-              : s.destination,
-            destinationCity: data.destinationCity?.trim() ?? s.destinationCity,
-          };
+      try {
+        const response = await fetch('/api/cargo', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ awb, data: payload, officerName }),
+        });
 
-          // If status changed → append tracking event
-          if (data.currentStatus && data.currentStatus !== s.currentStatus) {
-            updated.currentStatus = data.currentStatus;
-            const ts = nowTimestamp();
-            const newEvent: TrackingEvent = {
-              status: data.currentStatus,
-              timestamp: ts,
-              location: `${updated.destination.code} - Update Status`,
-              officer: officerName,
-              note: `Status diperbarui dari "${s.currentStatus}" → "${data.currentStatus}" oleh ${officerName}`,
-            };
-            updated.tracking = [...s.tracking, newEvent];
-          }
+        if (!response.ok) {
+          return { ok: false, error: await readApiError(response) };
+        }
 
-          return updated;
-        })
-      );
-      return { ok: true };
+        const body = (await response.json()) as { shipment?: Shipment };
+        if (body.shipment) {
+          setShipments((prev) =>
+            prev.map((shipment) => (shipment.awb === awb ? (body.shipment as Shipment) : shipment))
+          );
+        } else {
+          await reloadShipments();
+        }
+
+        return { ok: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Gagal memperbarui kargo di database Neon.';
+        return { ok: false, error: message };
+      }
+    },
+    [reloadShipments, shipments]
+  );
+
+  const deleteShipment = useCallback(
+    async (awb: string): Promise<OperationResult> => {
+      if (CRUD_DISABLED) {
+        return { ok: false, error: CRUD_DISABLED_MESSAGE };
+      }
+
+      if (!shipments.some((s) => s.awb === awb)) {
+        return { ok: false, error: `Kargo ${awb} tidak ditemukan.` };
+      }
+
+      try {
+        const response = await fetch('/api/cargo', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ awb }),
+        });
+
+        if (!response.ok) {
+          return { ok: false, error: await readApiError(response) };
+        }
+
+        setShipments((prev) => prev.filter((shipment) => shipment.awb !== awb));
+        return { ok: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Gagal menghapus kargo dari database Neon.';
+        return { ok: false, error: message };
+      }
     },
     [shipments]
   );
 
-  const deleteShipment = useCallback((awb: string): { ok: boolean; error?: string } => {
-    if (CRUD_DISABLED) {
-      return { ok: false, error: CRUD_DISABLED_MESSAGE };
-    }
-
-    if (!shipments.some((s) => s.awb === awb)) {
-      return { ok: false, error: `Kargo ${awb} tidak ditemukan.` };
-    }
-
-    setShipments((prev) => prev.filter((s) => s.awb !== awb));
-    return { ok: true };
-  }, [shipments]);
-
   return (
     <CargoContext.Provider
-      value={{ shipments, addShipment, updateShipment, deleteShipment, generateAWB }}
+      value={{
+        shipments,
+        cargoLoading,
+        cargoError,
+        reloadShipments,
+        addShipment,
+        updateShipment,
+        deleteShipment,
+        generateAWB,
+      }}
     >
       {children}
     </CargoContext.Provider>

@@ -247,7 +247,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
     const destAirport = AIRPORT_OPTIONS.find((a) => a.code === form.destinationCode);
 
     if (mode === 'create') {
-      const result = addShipment(
+      const result = await addShipment(
         {
           awb: form.awb.trim().toUpperCase(),
           shipper: form.shipper,
@@ -278,7 +278,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
       }
       onSuccess(`Kargo ${form.awb.toUpperCase()} berhasil ditambahkan ke sistem.`);
     } else if (shipment) {
-      const result = updateShipment(
+      const result = await updateShipment(
         shipment.awb,
         {
           shipper: form.shipper,
