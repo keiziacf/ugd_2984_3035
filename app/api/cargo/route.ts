@@ -106,6 +106,27 @@ async function ensureCargoSchema() {
   const sql = getSqlClient();
 
   await sql.query(`
+    CREATE TABLE IF NOT EXISTS airports (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      city TEXT NOT NULL,
+      province TEXT NOT NULL,
+      cargo_terminal TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await sql.query(`
+    CREATE TABLE IF NOT EXISTS airlines (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      service_type TEXT NOT NULL,
+      home_base TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await sql.query(`
     CREATE TABLE IF NOT EXISTS flights (
       id TEXT PRIMARY KEY,
       flight_number TEXT NOT NULL UNIQUE,
@@ -171,6 +192,67 @@ async function ensureCargoSchema() {
   `);
 
   return sql;
+}
+
+async function ensureAirportReference(
+  code: string,
+  name: string,
+  city: string
+) {
+  const sql = getSqlClient();
+  const airportCode = code.toUpperCase().trim();
+  const airportName = name.trim() || airportCode;
+  const airportCity = city.trim() || airportName;
+
+  await sql`
+    INSERT INTO airports (
+      code,
+      name,
+      city,
+      province,
+      cargo_terminal
+    )
+    VALUES (
+      ${airportCode},
+      ${airportName},
+      ${airportCity},
+      ${'Belum ditentukan'},
+      ${'Terminal Kargo'}
+    )
+    ON CONFLICT (code) DO UPDATE SET
+      name = EXCLUDED.name,
+      city = EXCLUDED.city,
+      province = CASE
+        WHEN airports.province = '' THEN EXCLUDED.province
+        ELSE airports.province
+      END,
+      cargo_terminal = CASE
+        WHEN airports.cargo_terminal = '' THEN EXCLUDED.cargo_terminal
+        ELSE airports.cargo_terminal
+      END
+  `;
+}
+
+async function ensureManualAirlineReference(homeBase: string) {
+  const sql = getSqlClient();
+
+  await sql`
+    INSERT INTO airlines (
+      code,
+      name,
+      service_type,
+      home_base
+    )
+    VALUES (
+      ${'MAN'},
+      ${'Manual Entry'},
+      ${'Manual Entry'},
+      ${homeBase.toUpperCase().trim()}
+    )
+    ON CONFLICT (name) DO UPDATE SET
+      service_type = EXCLUDED.service_type,
+      home_base = EXCLUDED.home_base
+  `;
 }
 
 function mapShipmentRows(rows: ShipmentRow[], trackingRows: TrackingRow[]): Shipment[] {
@@ -261,6 +343,10 @@ async function getShipment(awb: string): Promise<Shipment | null> {
 async function ensureFlight(data: CargoPayload) {
   const sql = getSqlClient();
   const flightNumber = data.flightNumber.toUpperCase().trim();
+
+  await ensureAirportReference(data.originCode, data.originName, data.originCity ?? '');
+  await ensureAirportReference(data.destinationCode, data.destinationName, data.destinationCity ?? '');
+  await ensureManualAirlineReference(data.originCode);
 
   await sql`
     INSERT INTO flights (
