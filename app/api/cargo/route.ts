@@ -95,7 +95,7 @@ function validateCargoPayload(data: Partial<CargoPayload>): string | null {
   if (typeof data.weight !== 'number' || !Number.isFinite(data.weight) || data.weight <= 0) {
     return 'Berat harus lebih dari 0 kg.';
   }
-  if (!Number.isInteger(data.pieces) || data.pieces <= 0) {
+  if (typeof data.pieces !== 'number' || !Number.isInteger(data.pieces) || data.pieces <= 0) {
     return 'Jumlah barang harus bilangan bulat positif.';
   }
 
