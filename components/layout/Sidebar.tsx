@@ -132,7 +132,7 @@ export function Sidebar() {
               href={item.path}
               title={sidebarCollapsed ? item.label : undefined}
               className={`group relative flex items-center rounded-lg py-2.5 transition-all duration-150 ${
-                sidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3'
+                sidebarCollapsed ? 'justify-center px-2' : 'gap-2.5 px-3'
               } ${
                 isActive
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -143,9 +143,9 @@ export function Sidebar() {
               <span
                 className="overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out"
                 style={{
-                  maxWidth: sidebarCollapsed ? 0 : 160,
+                  maxWidth: sidebarCollapsed ? 0 : 192,
                   opacity: sidebarCollapsed ? 0 : 1,
-                  fontSize: '0.875rem',
+                  fontSize: '0.8125rem',
                 }}
               >
                 {item.label}

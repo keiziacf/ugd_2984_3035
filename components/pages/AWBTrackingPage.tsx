@@ -429,17 +429,6 @@ export function AWBNotFound({ query, onReset }: { query: string; onReset: () => 
       >
         <Search size={16} /> Cari Data Lain
       </button>
-      <button
-        onClick={onReset}
-        className={`mt-3 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border transition-colors ${
-          isDark
-            ? 'border-slate-600 text-slate-300 hover:border-blue-500 hover:text-blue-300'
-            : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600'
-        }`}
-        style={{ fontSize: '0.875rem', fontWeight: 500 }}
-      >
-        <ArrowRight size={16} className="rotate-180" /> Kembali ke Tracking AWB
-      </button>
       <p className={`mt-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.8125rem' }}>
         Butuh bantuan? Hubungi supervisor Anda atau hubungi{' '}
         <span className="text-blue-500">helpdesk@aerotrack.co.id</span>

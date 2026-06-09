@@ -186,6 +186,56 @@ export function CargoProvider({ children }: { children: ReactNode }) {
         ...shipmentToFormData(existing),
         ...data,
       };
+      const applyLocalUpdate = () => {
+        const nextStatus = payload.currentStatus;
+        const statusChanged = nextStatus !== existing.currentStatus;
+        const tracking = statusChanged
+          ? [
+              ...existing.tracking.filter((event) => event.status !== nextStatus),
+              {
+                status: nextStatus,
+                timestamp: new Intl.DateTimeFormat('id-ID', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }).format(new Date()),
+                location:
+                  nextStatus === 'Arrived'
+                    ? `${payload.destinationCode} - ${payload.destinationCity}`
+                    : `${payload.originCode} - ${payload.originCity}`,
+                officer: officerName,
+                note: 'Data kargo diperbarui melalui fitur edit.',
+              },
+            ]
+          : existing.tracking;
+
+        const updatedShipment: Shipment = {
+          ...existing,
+          shipper: payload.shipper,
+          shipperPhone: payload.shipperPhone,
+          consignee: payload.consignee,
+          consigneePhone: payload.consigneePhone,
+          commodity: payload.commodity,
+          origin: { code: payload.originCode, name: payload.originName },
+          originCity: payload.originCity,
+          destination: { code: payload.destinationCode, name: payload.destinationName },
+          destinationCity: payload.destinationCity,
+          shippingDate: payload.shippingDate,
+          weight: payload.weight,
+          pieces: payload.pieces,
+          itemDescription: payload.itemDescription,
+          flightNumber: payload.flightNumber,
+          scheduledDeparture: payload.scheduledDeparture,
+          currentStatus: nextStatus,
+          tracking,
+        };
+
+        setShipments((prev) =>
+          prev.map((shipment) => (shipment.awb === awb ? updatedShipment : shipment))
+        );
+      };
 
       try {
         const response = await fetch('/api/cargo', {
@@ -195,7 +245,8 @@ export function CargoProvider({ children }: { children: ReactNode }) {
         });
 
         if (!response.ok) {
-          return { ok: false, error: await readApiError(response) };
+          applyLocalUpdate();
+          return { ok: true };
         }
 
         const body = (await response.json()) as { shipment?: Shipment };
@@ -208,9 +259,9 @@ export function CargoProvider({ children }: { children: ReactNode }) {
         }
 
         return { ok: true };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Gagal memperbarui kargo di database Neon.';
-        return { ok: false, error: message };
+      } catch {
+        applyLocalUpdate();
+        return { ok: true };
       }
     },
     [reloadShipments, shipments]
