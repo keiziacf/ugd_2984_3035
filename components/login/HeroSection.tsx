@@ -31,7 +31,7 @@ function PlanePath({ className = '' }: { className?: string }) {
 
 export function HeroSection() {
   return (
-    <div className="relative hidden flex-col lg:flex lg:w-[58%] xl:w-[62%]">
+    <div className="relative hidden flex-col lg:flex lg:w-[62%]">
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url("${BG_IMG}")` }}

@@ -380,7 +380,7 @@ function ShipmentDetail({ shipment }: { shipment: Shipment }) {
   );
 }
 
-function AWBNotFound({ query, onReset }: { query: string; onReset: () => void }) {
+export function AWBNotFound({ query, onReset }: { query: string; onReset: () => void }) {
   const { isDark } = useApp();
   return (
     <motion.div
@@ -553,6 +553,7 @@ export function AWBTrackingPage() {
   );
   const [searched, setSearched] = useState(Boolean(activeQuery));
   const [isLoading, setIsLoading] = useState(false);
+  const searchExamples = cargoShipments.slice(0, 3).map((shipment) => shipment.awb);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -564,11 +565,16 @@ export function AWBTrackingPage() {
       }
 
       const found = findShipments(activeQuery);
+      if (found.length === 0) {
+        router.replace(`/tracking/error?q=${encodeURIComponent(activeQuery)}`);
+        return;
+      }
+
       setSearchValue(activeQuery);
-      setResults(found.length > 0 ? found : null);
+      setResults(found);
       setSearched(true);
     });
-  }, [activeQuery, findShipments]);
+  }, [activeQuery, findShipments, router]);
 
   const handleSearch = async () => {
     if (!searchValue.trim()) return;
@@ -583,17 +589,11 @@ export function AWBTrackingPage() {
     setIsLoading(false);
     if (exactAwb) {
       router.replace(`/tracking/${exactAwb.awb}`);
-    } else {
+    } else if (found.length > 0) {
       router.replace(`/tracking?q=${encodeURIComponent(query)}`);
+    } else {
+      router.replace(`/tracking/error?q=${encodeURIComponent(query)}`);
     }
-  };
-
-  const handleReset = () => {
-    setSearchValue('');
-    setResults(undefined);
-    setSearched(false);
-    router.replace('/tracking');
-    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   useEffect(() => {
@@ -671,6 +671,38 @@ export function AWBTrackingPage() {
             )}
           </button>
         </div>
+
+        <div className={`mt-4 rounded-lg border px-4 py-3 ${
+          isDark ? 'border-slate-700 bg-slate-700/30' : 'border-blue-100 bg-blue-50/40'
+        }`}>
+          <p className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`} style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+            Contoh format yang bisa dicari
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {searchExamples.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => {
+                  setSearchValue(example);
+                  inputRef.current?.focus();
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono transition-colors ${
+                  isDark
+                    ? 'border-slate-600 bg-slate-800 text-blue-300 hover:border-blue-500'
+                    : 'border-blue-200 bg-white text-blue-700 hover:border-blue-400'
+                }`}
+                style={{ fontSize: '0.8125rem', fontWeight: 700 }}
+              >
+                <PackageSearch size={14} />
+                {example}
+              </button>
+            ))}
+            <span className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.8125rem' }}>
+              atau cari nama pengirim, penerima, dan nama barang.
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Loading Skeleton */}
@@ -704,9 +736,6 @@ export function AWBTrackingPage() {
             shipments={results}
             onSelect={(shipment) => router.push(`/tracking/${shipment.awb}`)}
           />
-        )}
-        {!isLoading && searched && results === null && (
-          <AWBNotFound key="notfound" query={searchValue} onReset={handleReset} />
         )}
       </AnimatePresence>
 

@@ -55,7 +55,7 @@ export function LoginFormSection({
   const { startNavigationLoading } = useApp();
 
   return (
-    <div className="relative flex w-full items-center justify-center bg-white lg:w-[42%] xl:w-[38%]">
+    <div className="relative flex w-full items-center justify-center bg-white lg:w-[38%]">
       <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600" />
 
       <div className="absolute left-6 top-6 flex items-center gap-2.5 lg:hidden">
