@@ -12,7 +12,9 @@ import {
   ExternalLink,
   Truck,
   AlertCircle,
-  Search,
+  ClipboardCheck,
+  FileCheck2,
+  ScanLine,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { todayShipmentsList, recentActivity } from '@/lib/mock-data';
@@ -58,6 +60,12 @@ const INITIAL_TASKS: TaskItem[] = [
   { id: 3, task: 'Koordinasi muat QG-973 di Gate A2', status: 'done', priority: 'normal', time: '13:00', href: '/cargo?q=QG-973' },
   { id: 4, task: 'Verifikasi manifest JT-539', status: 'done', priority: 'high', time: '12:30', href: '/cargo?q=JT-539' },
   { id: 5, task: 'Input data penerimaan AT-2604120014', status: 'pending', priority: 'normal', time: '16:00', href: '/tracking/AT-2604120014' },
+];
+
+const OPERATOR_ACTIONS = [
+  { label: 'Scan Penerimaan', desc: 'Input barang masuk gudang', icon: ScanLine, href: '/cargo' },
+  { label: 'Update Status', desc: 'Perbarui tracking AWB', icon: ClipboardCheck, href: '/tracking' },
+  { label: 'Cek Manifest', desc: 'Validasi data penerbangan', icon: FileCheck2, href: '/cargo?q=manifest' },
 ];
 
 export function OperatorDashboard() {
@@ -200,24 +208,44 @@ export function OperatorDashboard() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45, duration: 0.35 }}
-            className="relative overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white"
+            className={`rounded-xl border p-5 ${cardBase}`}
           >
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, white 0%, transparent 60%)' }} />
-            <div className="relative flex items-center gap-4">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/20">
-                <Search size={20} className="text-white" />
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className={isDark ? 'text-slate-200' : 'text-slate-800'}>Ruang Kerja Operator</h3>
+                <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.8125rem' }}>
+                  Aksi cepat untuk proses gudang hari ini
+                </p>
               </div>
-              <div className="flex-1">
-                <p style={{ fontWeight: 700, fontSize: '1rem' }}>Lacak Kargo</p>
-                <p style={{ fontSize: '0.8125rem', opacity: 0.85 }}>Cari dan update status AWB secara real-time</p>
-              </div>
-              <button
-                onClick={() => router.push('/tracking')}
-                className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2 text-blue-600 transition-colors hover:bg-blue-50"
-                style={{ fontWeight: 600, fontSize: '0.875rem' }}
-              >
-                Buka Tracking <ArrowRight size={15} />
-              </button>
+              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                Shift Aktif
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {OPERATOR_ACTIONS.map((action) => {
+                const Icon = action.icon;
+
+                return (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onClick={() => router.push(action.href)}
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      isDark ? 'border-slate-700 bg-slate-700/30 hover:bg-slate-700/60' : 'border-slate-200 bg-slate-50 hover:bg-blue-50/50'
+                    }`}
+                  >
+                    <div className={isDark ? 'mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-900/30 text-blue-300' : 'mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600'}>
+                      <Icon size={18} />
+                    </div>
+                    <p className={isDark ? 'text-slate-200' : 'text-slate-800'} style={{ fontSize: '0.8125rem', fontWeight: 700 }}>
+                      {action.label}
+                    </p>
+                    <p className={isDark ? 'mt-1 text-slate-500' : 'mt-1 text-slate-500'} style={{ fontSize: '0.6875rem', lineHeight: 1.4 }}>
+                      {action.desc}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </motion.div>
 
