@@ -40,6 +40,7 @@ const PAGE_SIZE = 10;
 
 type SortKey = 'awb' | 'shipper' | 'weight' | 'status' | 'departure' | 'destination';
 type SortDir = 'asc' | 'desc';
+type DateFilter = 'all' | '3d' | '7d' | '30d';
 
 const STATUS_BADGE: Record<ShipmentStatus, { label: string; dot: string; cls: string }> = {
   Received: {
@@ -69,6 +70,38 @@ const STATUS_BADGE: Record<ShipmentStatus, { label: string; dot: string; cls: st
   },
 };
 
+function parseDisplayDate(value: string) {
+  const match = value.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (!match) return null;
+
+  const monthMap: Record<string, number> = {
+    Jan: 0,
+    Feb: 1,
+    Mar: 2,
+    Apr: 3,
+    Mei: 4,
+    Jun: 5,
+    Jul: 6,
+    Agt: 7,
+    Sep: 8,
+    Okt: 9,
+    Nov: 10,
+    Des: 11,
+  };
+  const [, day, month, year] = match;
+  const monthIndex = monthMap[month];
+  if (monthIndex === undefined) return null;
+  return new Date(Number(year), monthIndex, Number(day));
+}
+
+function parseShipmentDate(shipment: Shipment) {
+  if (shipment.shippingDate) {
+    const parsed = new Date(`${shipment.shippingDate}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return parseDisplayDate(shipment.scheduledDeparture);
+}
+
 export function CargoPage() {
   const { isDark, currentUser } = useApp();
   const { shipments, deleteShipment } = useCargo();
@@ -96,9 +129,12 @@ export function CargoPage() {
   const [toastType, setToastType] = useState<'success' | 'delete' | 'info'>('success');
 
   const validStatuses: Array<ShipmentStatus | 'all'> = ['all', 'Received', 'Sortation', 'Loaded to Aircraft', 'Departed', 'Arrived'];
+  const validDateFilters: DateFilter[] = ['all', '3d', '7d', '30d'];
   const search = searchParams.get('q') ?? '';
   const requestedStatus = (searchParams.get('status') as ShipmentStatus | 'all' | null) ?? 'all';
+  const requestedDate = (searchParams.get('periode') as DateFilter | null) ?? 'all';
   const filterStatus = validStatuses.includes(requestedStatus) ? requestedStatus : 'all';
+  const filterDate = validDateFilters.includes(requestedDate) ? requestedDate : 'all';
   const filterRoute = searchParams.get('route') ?? 'all';
 
   // Derived stats
@@ -116,6 +152,13 @@ export function CargoPage() {
   const routes = useMemo(() => {
     const pairs = new Set(shipments.map((s) => `${s.origin.code}→${s.destination.code}`));
     return ['all', ...Array.from(pairs).sort()];
+  }, [shipments]);
+
+  const latestShipmentDate = useMemo(() => {
+    const times = shipments
+      .map((shipment) => parseShipmentDate(shipment)?.getTime())
+      .filter((time): time is number => typeof time === 'number' && Number.isFinite(time));
+    return times.length ? Math.max(...times) : Date.now();
   }, [shipments]);
 
   // Filter + Search + Sort
@@ -147,6 +190,15 @@ export function CargoPage() {
       );
     }
 
+    if (filterDate !== 'all') {
+      const rangeDays = filterDate === '3d' ? 3 : filterDate === '7d' ? 7 : 30;
+      const minDate = latestShipmentDate - (rangeDays - 1) * 24 * 60 * 60 * 1000;
+      list = list.filter((shipment) => {
+        const time = parseShipmentDate(shipment)?.getTime();
+        return typeof time === 'number' && time >= minDate && time <= latestShipmentDate;
+      });
+    }
+
     list.sort((a, b) => {
       let valA: string | number = '';
       let valB: string | number = '';
@@ -165,7 +217,7 @@ export function CargoPage() {
     });
 
     return list;
-  }, [shipments, search, filterStatus, filterRoute, sortKey, sortDir]);
+  }, [shipments, search, filterStatus, filterRoute, filterDate, latestShipmentDate, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -180,7 +232,7 @@ export function CargoPage() {
     setPage(1);
   }
 
-  function updateQuery(next: { q?: string; status?: ShipmentStatus | 'all'; route?: string }) {
+  function updateQuery(next: { q?: string; status?: ShipmentStatus | 'all'; route?: string; date?: DateFilter }) {
     const params = new URLSearchParams(searchParams.toString());
 
     if (next.q !== undefined) {
@@ -198,6 +250,11 @@ export function CargoPage() {
       else params.delete('route');
     }
 
+    if (next.date !== undefined) {
+      if (next.date !== 'all') params.set('periode', next.date);
+      else params.delete('periode');
+    }
+
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
@@ -209,6 +266,11 @@ export function CargoPage() {
 
   function handleFilterStatus(v: ShipmentStatus | 'all') {
     updateQuery({ status: v });
+    setPage(1);
+  }
+
+  function handleFilterDate(v: DateFilter) {
+    updateQuery({ date: v });
     setPage(1);
   }
 
@@ -325,11 +387,10 @@ export function CargoPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
         {[
           { label: 'Total Kargo', value: stats.total, color: 'slate', filter: 'all' as const },
           { label: 'Diterima', value: stats.byStatus['Received'] || 0, color: 'slate', filter: 'Received' as ShipmentStatus },
-          { label: 'Sortasi', value: stats.byStatus['Sortation'] || 0, color: 'blue', filter: 'Sortation' as ShipmentStatus },
           { label: 'Dimuat', value: stats.byStatus['Loaded to Aircraft'] || 0, color: 'amber', filter: 'Loaded to Aircraft' as ShipmentStatus },
           { label: 'Berangkat', value: stats.byStatus['Departed'] || 0, color: 'indigo', filter: 'Departed' as ShipmentStatus },
           { label: 'Tiba', value: stats.byStatus['Arrived'] || 0, color: 'green', filter: 'Arrived' as ShipmentStatus },
@@ -434,11 +495,30 @@ export function CargoPage() {
             </select>
           </div>
 
+          {/* Date Filter */}
+          <div className="relative">
+            <select
+              value={filterDate}
+              onChange={(e) => handleFilterDate(e.target.value as DateFilter)}
+              className={`px-3 py-2.5 rounded-xl border appearance-none outline-none transition-colors cursor-pointer ${
+                isDark
+                  ? 'bg-slate-700 border-slate-600 text-slate-200 focus:border-blue-500'
+                  : 'bg-white border-slate-300 text-slate-700 focus:border-blue-500'
+              }`}
+              style={{ fontSize: '0.875rem' }}
+            >
+              <option value="all">Semua Tanggal</option>
+              <option value="3d">3 Hari Terakhir</option>
+              <option value="7d">7 Hari Terakhir</option>
+              <option value="30d">30 Hari Terakhir</option>
+            </select>
+          </div>
+
           {/* Reset */}
-          {(search || filterStatus !== 'all' || filterRoute !== 'all') && (
+          {(search || filterStatus !== 'all' || filterRoute !== 'all' || filterDate !== 'all') && (
             <button
               onClick={() => {
-                updateQuery({ q: '', status: 'all', route: 'all' });
+                updateQuery({ q: '', status: 'all', route: 'all', date: 'all' });
                 setPage(1);
               }}
               className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-colors ${

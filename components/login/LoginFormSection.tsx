@@ -91,10 +91,10 @@ export function LoginFormSection({
             className="text-slate-900"
             style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}
           >
-            Masuk ke Sistem
+            Masuk
           </h2>
           <p className="mt-1 text-slate-500" style={{ fontSize: '0.875rem' }}>
-            Gunakan email dan password sesuai role yang diberikan
+            Gunakan email dan password yang sesuai
           </p>
         </div>
 
@@ -247,7 +247,7 @@ export function LoginFormSection({
               </>
             ) : (
               <>
-                Masuk ke Sistem
+                Masuk
                 <ArrowRight size={17} />
               </>
             )}

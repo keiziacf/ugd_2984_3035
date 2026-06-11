@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useCargo } from '@/context/CargoContext';
-import type { Shipment, ShipmentStatus } from '@/lib/mock-data';
+import { flights } from '@/lib/mock-data';
+import type { Flight, Shipment, ShipmentStatus } from '@/lib/mock-data';
 
 const AIRPORT_OPTIONS = [
   { code: 'CGK', name: 'Soekarno-Hatta Jakarta', city: 'Jakarta' },
@@ -29,17 +30,17 @@ const AIRPORT_OPTIONS = [
   { code: 'BDJ', name: 'Syamsudin Noor Banjarmasin', city: 'Banjarmasin' },
 ];
 
-const STATUS_OPTIONS: ShipmentStatus[] = [
+type EditableShipmentStatus = Exclude<ShipmentStatus, 'Sortation'>;
+
+const STATUS_OPTIONS: EditableShipmentStatus[] = [
   'Received',
-  'Sortation',
   'Loaded to Aircraft',
   'Departed',
   'Arrived',
 ];
 
-const STATUS_LABELS: Record<ShipmentStatus, string> = {
+const STATUS_LABELS: Record<EditableShipmentStatus, string> = {
   Received: 'Diterima di Gudang',
-  Sortation: 'Proses Sortasi',
   'Loaded to Aircraft': 'Dimuat ke Pesawat',
   Departed: 'Pesawat Berangkat',
   Arrived: 'Tiba di Tujuan',
@@ -90,7 +91,67 @@ function getDateInputFromDisplayDate(value: string) {
 }
 
 function isValidPhone(value: string) {
-  return /^[+\d][\d\s-]{7,17}$/.test(value.trim());
+  return /^\d{10,12}$/.test(value.trim());
+}
+
+function getDateTimeInputFromDisplayDate(value: string) {
+  const match = value.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4}),\s+(\d{2}):(\d{2})/);
+  if (!match) return '';
+
+  const monthMap: Record<string, string> = {
+    Jan: '01',
+    Feb: '02',
+    Mar: '03',
+    Apr: '04',
+    Mei: '05',
+    Jun: '06',
+    Jul: '07',
+    Agt: '08',
+    Sep: '09',
+    Okt: '10',
+    Nov: '11',
+    Des: '12',
+  };
+  const [, day, month, year, hour, minute] = match;
+  const monthNumber = monthMap[month];
+  if (!monthNumber) return '';
+
+  return `${year}-${monthNumber}-${day.padStart(2, '0')}T${hour}:${minute}`;
+}
+
+function formatDateTimeForDisplay(value: string) {
+  if (!value) return '';
+  const [datePart, timePart] = value.split('T');
+  if (!datePart || !timePart) return value;
+
+  const [year, month, day] = datePart.split('-');
+  const monthMap: Record<string, string> = {
+    '01': 'Jan',
+    '02': 'Feb',
+    '03': 'Mar',
+    '04': 'Apr',
+    '05': 'Mei',
+    '06': 'Jun',
+    '07': 'Jul',
+    '08': 'Agt',
+    '09': 'Sep',
+    '10': 'Okt',
+    '11': 'Nov',
+    '12': 'Des',
+  };
+
+  return `${day} ${monthMap[month] ?? month} ${year}, ${timePart} WIB`;
+}
+
+function combineDateAndTime(dateValue: string, timeValue: string) {
+  if (!dateValue || !timeValue) return '';
+  return `${dateValue}T${timeValue}`;
+}
+
+function getFlightRemainingCapacity(flight: Flight, currentShipment?: Shipment | null) {
+  const currentWeight =
+    currentShipment?.flightNumber === flight.flightNumber ? currentShipment.weight : 0;
+  return flight.cargoCapacity - flight.cargoWeight + currentWeight;
 }
 
 interface FormState {
@@ -173,7 +234,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
           pieces: String(shipment.pieces),
           itemDescription: shipment.itemDescription ?? '',
           flightNumber: shipment.flightNumber,
-          scheduledDeparture: shipment.scheduledDeparture,
+          scheduledDeparture: getDateTimeInputFromDisplayDate(shipment.scheduledDeparture),
           currentStatus: shipment.currentStatus,
           statusNote: '',
         });
@@ -201,6 +262,31 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
     setErrors((prev) => ({ ...prev, destinationCode: '', destinationCity: '' }));
   }
 
+  function handleFlightChange(value: string) {
+    const selectedFlight = flights.find((flight) => flight.flightNumber === value);
+    setForm((prev) => ({
+      ...prev,
+      flightNumber: value,
+      scheduledDeparture: selectedFlight
+        ? combineDateAndTime(prev.shippingDate || getTodayDateInput(), selectedFlight.scheduledDeparture)
+        : '',
+    }));
+    setErrors((prev) => ({ ...prev, flightNumber: '', scheduledDeparture: '', weight: '' }));
+  }
+
+  function handleShippingDateChange(value: string) {
+    const selectedFlight = flights.find((flight) => flight.flightNumber === form.flightNumber);
+    setForm((prev) => ({
+      ...prev,
+      shippingDate: value,
+      scheduledDeparture:
+        selectedFlight && prev.scheduledDeparture
+          ? combineDateAndTime(value, selectedFlight.scheduledDeparture)
+          : prev.scheduledDeparture,
+    }));
+    setErrors((prev) => ({ ...prev, shippingDate: '', scheduledDeparture: '' }));
+  }
+
   function validate(): boolean {
     const e: FormErrors = {};
     if (!form.awb.trim()) e.awb = 'Nomor AWB wajib diisi.';
@@ -208,16 +294,20 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
       if (!form.awb.trim().toUpperCase().startsWith('AT-')) e.awb = 'Format AWB harus dimulai dengan AT-.';
     }
     if (!form.shipper.trim()) e.shipper = 'Nama pengirim wajib diisi.';
+    else if (form.shipper.trim().length < 8) e.shipper = 'Nama pengirim minimal 8 karakter.';
     if (!form.shipperPhone.trim()) e.shipperPhone = 'Nomor telepon pengirim wajib diisi.';
-    else if (!isValidPhone(form.shipperPhone)) e.shipperPhone = 'Format nomor telepon pengirim tidak valid.';
+    else if (!isValidPhone(form.shipperPhone)) e.shipperPhone = 'Nomor telepon pengirim harus 10 sampai 12 angka.';
     if (!form.consignee.trim()) e.consignee = 'Nama penerima wajib diisi.';
+    else if (form.consignee.trim().length < 8) e.consignee = 'Nama penerima minimal 8 karakter.';
     if (!form.consigneePhone.trim()) e.consigneePhone = 'Nomor telepon penerima wajib diisi.';
-    else if (!isValidPhone(form.consigneePhone)) e.consigneePhone = 'Format nomor telepon penerima tidak valid.';
+    else if (!isValidPhone(form.consigneePhone)) e.consigneePhone = 'Nomor telepon penerima harus 10 sampai 12 angka.';
     if (!form.commodity.trim()) e.commodity = 'Jenis barang wajib diisi.';
     if (!form.originCode) e.originCode = 'Bandara asal wajib dipilih.';
     if (!form.originCity.trim()) e.originCity = 'Kota asal wajib diisi.';
+    else if (form.originCity.trim().length < 4) e.originCity = 'Kota asal minimal 4 karakter.';
     if (!form.destinationCode) e.destinationCode = 'Bandara tujuan wajib dipilih.';
     if (!form.destinationCity.trim()) e.destinationCity = 'Kota tujuan wajib diisi.';
+    else if (form.destinationCity.trim().length < 4) e.destinationCity = 'Kota tujuan minimal 4 karakter.';
     if (form.originCode && form.destinationCode && form.originCode === form.destinationCode) {
       e.destinationCode = 'Bandara tujuan harus berbeda dari asal.';
     }
@@ -228,8 +318,16 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
     const p = parseInt(form.pieces);
     if (!form.pieces.trim()) e.pieces = 'Jumlah barang wajib diisi.';
     else if (isNaN(p) || p <= 0 || !Number.isInteger(p)) e.pieces = 'Jumlah barang harus bilangan bulat positif.';
-    if (!form.flightNumber.trim()) e.flightNumber = 'Nomor penerbangan wajib diisi.';
+    const selectedFlight = flights.find((flight) => flight.flightNumber === form.flightNumber);
+    if (!form.flightNumber.trim()) e.flightNumber = 'Nomor penerbangan wajib dipilih.';
+    else if (!selectedFlight) e.flightNumber = 'Nomor penerbangan harus dipilih dari data manajemen penerbangan.';
     if (!form.scheduledDeparture.trim()) e.scheduledDeparture = 'Jadwal keberangkatan wajib diisi.';
+    if (selectedFlight && !e.weight) {
+      const remainingCapacity = getFlightRemainingCapacity(selectedFlight, mode === 'edit' ? shipment : null);
+      if (w > remainingCapacity) {
+        e.weight = `Berat melebihi sisa kapasitas ${selectedFlight.flightNumber}. Maksimal ${remainingCapacity.toFixed(1)} kg.`;
+      }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -245,6 +343,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
 
     const originAirport = AIRPORT_OPTIONS.find((a) => a.code === form.originCode);
     const destAirport = AIRPORT_OPTIONS.find((a) => a.code === form.destinationCode);
+    const scheduledDeparture = formatDateTimeForDisplay(form.scheduledDeparture);
 
     if (mode === 'create') {
       const result = await addShipment(
@@ -266,7 +365,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
           pieces: parseInt(form.pieces),
           itemDescription: form.itemDescription,
           flightNumber: form.flightNumber,
-          scheduledDeparture: form.scheduledDeparture,
+          scheduledDeparture,
           currentStatus: form.currentStatus,
         },
         currentUser.name
@@ -297,7 +396,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
           pieces: parseInt(form.pieces),
           itemDescription: form.itemDescription,
           flightNumber: form.flightNumber,
-          scheduledDeparture: form.scheduledDeparture,
+          scheduledDeparture,
           currentStatus: form.currentStatus,
         },
         currentUser.name
@@ -421,16 +520,16 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                     <input
                       type="text"
                       value={form.awb}
-                      onChange={(e) => set('awb', e.target.value)}
-                      readOnly={mode === 'edit'}
+                      readOnly
+                      aria-readonly="true"
                       placeholder="AT-YYMMDDXXXX"
-                      className={`${inputBase} font-mono ${mode === 'edit' ? 'opacity-70 cursor-not-allowed' : ''} ${errors.awb ? 'border-red-500' : ''}`}
+                      className={`${inputBase} cursor-not-allowed font-mono opacity-70 ${errors.awb ? 'border-red-500' : ''}`}
                       style={{ fontSize: '0.875rem' }}
                     />
                     {errors.awb && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.awb}</p>}
                     {mode === 'create' && (
                       <p className={`mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.6875rem' }}>
-                        Auto-generated · Dapat diubah
+                        Auto-generated - Tidak dapat diubah
                       </p>
                     )}
                   </div>
@@ -465,7 +564,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                     <input
                       type="date"
                       value={form.shippingDate}
-                      onChange={(e) => set('shippingDate', e.target.value)}
+                      onChange={(e) => handleShippingDateChange(e.target.value)}
                       className={`${inputBase} ${errors.shippingDate ? 'border-red-500' : ''}`}
                       style={{ fontSize: '0.875rem' }}
                     />
@@ -485,7 +584,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                      Nama Pengirim (Shipper) <span className="text-red-500">*</span>
+                      Nama Pengirim <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -513,7 +612,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                   </div>
                   <div>
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                      Nama Penerima (Consignee) <span className="text-red-500">*</span>
+                      Nama Penerima <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -566,7 +665,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                         <option value="">Pilih bandara asal...</option>
                         {AIRPORT_OPTIONS.map((a) => (
                           <option key={a.code} value={a.code}>
-                            {a.code} — {a.name}
+                            {a.code} - {a.name}
                           </option>
                         ))}
                       </select>
@@ -590,7 +689,7 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                         <option value="">Pilih bandara tujuan...</option>
                         {AIRPORT_OPTIONS.filter((a) => a.code !== form.originCode).map((a) => (
                           <option key={a.code} value={a.code}>
-                            {a.code} — {a.name}
+                            {a.code} - {a.name}
                           </option>
                         ))}
                       </select>
@@ -636,14 +735,28 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
                       No. Penerbangan <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={form.flightNumber}
-                      onChange={(e) => set('flightNumber', e.target.value)}
-                      placeholder="GA-412 / JT-711"
-                      className={`${inputBase} font-mono uppercase ${errors.flightNumber ? 'border-red-500' : ''}`}
-                      style={{ fontSize: '0.875rem' }}
-                    />
+                    <div className="relative">
+                      <select
+                        value={form.flightNumber}
+                        onChange={(e) => handleFlightChange(e.target.value)}
+                        className={`${inputBase} appearance-none pr-8 font-mono ${errors.flightNumber ? 'border-red-500' : ''}`}
+                        style={{ fontSize: '0.875rem' }}
+                      >
+                        <option value="">Pilih penerbangan...</option>
+                        {flights.map((flight) => {
+                          const remainingCapacity = getFlightRemainingCapacity(
+                            flight,
+                            mode === 'edit' ? shipment : null
+                          );
+                          return (
+                            <option key={flight.id} value={flight.flightNumber}>
+                              {flight.flightNumber} - {flight.origin.code} ke {flight.destination.code} - sisa {remainingCapacity.toFixed(1)} kg
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                    </div>
                     {errors.flightNumber && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.flightNumber}</p>}
                   </div>
 
@@ -653,10 +766,9 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                       Jadwal Keberangkatan <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="text"
+                      type="datetime-local"
                       value={form.scheduledDeparture}
                       onChange={(e) => set('scheduledDeparture', e.target.value)}
-                      placeholder="13 Apr 2026, 14:00 WIB"
                       className={`${inputBase} ${errors.scheduledDeparture ? 'border-red-500' : ''}`}
                       style={{ fontSize: '0.875rem' }}
                     />
@@ -689,6 +801,14 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                       style={{ fontSize: '0.875rem' }}
                     />
                     {errors.weight && <p className={errorCls} style={{ fontSize: '0.75rem' }}>{errors.weight}</p>}
+                    {form.flightNumber && !errors.weight && flights.some((flight) => flight.flightNumber === form.flightNumber) && (
+                      <p className={`mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.6875rem' }}>
+                        Sisa kapasitas: {getFlightRemainingCapacity(
+                          flights.find((flight) => flight.flightNumber === form.flightNumber)!,
+                          mode === 'edit' ? shipment : null
+                        ).toFixed(1)} kg
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
@@ -734,12 +854,11 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                   <label className={labelBase} style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
                     Status Saat Ini <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {STATUS_OPTIONS.map((status) => {
                       const isSelected = form.currentStatus === status;
-                      const statusColors: Record<ShipmentStatus, string> = {
+                      const statusColors: Record<EditableShipmentStatus, string> = {
                         Received: 'border-slate-400 bg-slate-50 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
-                        Sortation: 'border-blue-400 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
                         'Loaded to Aircraft': 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
                         Departed: 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
                         Arrived: 'border-green-400 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300',
@@ -761,7 +880,6 @@ export function CargoModal({ mode, shipment, onClose, onSuccess }: CargoModalPro
                             className={`w-2 h-2 rounded-full flex-shrink-0 ${
                               isSelected
                                 ? status === 'Received' ? 'bg-slate-500'
-                                  : status === 'Sortation' ? 'bg-blue-500'
                                   : status === 'Loaded to Aircraft' ? 'bg-amber-500'
                                   : status === 'Departed' ? 'bg-indigo-500'
                                   : 'bg-green-500'

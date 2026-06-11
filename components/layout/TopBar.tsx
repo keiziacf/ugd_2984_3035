@@ -11,8 +11,6 @@ import {
   ChevronDown,
   Settings,
   LogOut,
-  Search,
-  ShieldCheck,
   ExternalLink,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -277,7 +275,7 @@ export function TopBar() {
               setProfileOpen((prev) => !prev);
               setNotificationsOpen(false);
             }}
-            className={`flex items-center gap-2 rounded-xl px-1.5 py-1 transition-colors ${
+            className={`flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors ${
               isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
             }`}
           >
@@ -290,19 +288,8 @@ export function TopBar() {
               </span>
             </div>
             <div className="hidden text-left sm:block">
-              <div className="flex items-center gap-1.5">
-                <p className={isDark ? 'text-slate-200' : 'text-slate-700'} style={{ fontSize: '0.8125rem', fontWeight: 500, lineHeight: 1.2 }}>
-                  {currentUser.name}
-                </p>
-                <span
-                  className={`rounded border px-1.5 py-0.5 ${roleMeta.bgClass} ${roleMeta.textClass} ${roleMeta.borderClass}`}
-                  style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                >
-                  {roleMeta.label}
-                </span>
-              </div>
-              <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.6875rem' }}>
-                {currentUser.airport} &bull; {currentUser.email.split('@')[0]}
+              <p className={isDark ? 'text-slate-200' : 'text-slate-700'} style={{ fontSize: '0.8125rem', fontWeight: 600, lineHeight: 1.2 }}>
+                {currentUser.name}
               </p>
             </div>
             <ChevronDown size={14} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
@@ -314,23 +301,9 @@ export function TopBar() {
                 isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'
               }`}
             >
-              <div className={`border-b px-4 py-3 ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
-                <p className={isDark ? 'text-slate-200' : 'text-slate-800'} style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                  {currentUser.name}
-                </p>
-                <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.75rem' }}>
-                  {roleMeta.label} di {currentUser.airport}
-                </p>
-              </div>
               <div className="p-2">
                 {[
                   { label: 'Pengaturan Akun', icon: Settings, href: '/settings' },
-                  { label: 'Tracking AWB', icon: Search, href: '/tracking' },
-                  {
-                    label: currentUser.role === 'admin' ? 'Audit & Ringkasan' : 'Ringkasan Sistem',
-                    icon: ShieldCheck,
-                    href: currentUser.role === 'admin' ? '/users?role=operator' : '/',
-                  },
                 ].map((item) => (
                   <button
                     key={item.label}

@@ -40,12 +40,14 @@ export interface Flight {
   status: 'on-time' | 'delayed' | 'departed' | 'cancelled';
   cargoCount: number;
   cargoWeight: number;
+  cargoCapacity: number;
 }
 
 export interface User {
   id: number;
   name: string;
   email: string;
+  password: string;
   role: 'admin' | 'operator' | 'supervisor';
   airport: string;
   lastLogin: string;
@@ -356,34 +358,34 @@ export const shipments: Record<string, Shipment> = {
 export const todayShipmentsList: Shipment[] = Object.values(shipments);
 
 export const flights: Flight[] = [
-  { id: 'f1', flightNumber: 'GA-412', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'SUB', name: 'Juanda' }, scheduledDeparture: '13:00', actualDeparture: '13:05', status: 'departed', cargoCount: 4, cargoWeight: 125.5 },
-  { id: 'f2', flightNumber: 'QG-682', airline: 'Citilink', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'DPS', name: 'Ngurah Rai' }, scheduledDeparture: '15:30', actualDeparture: '15:40', status: 'departed', cargoCount: 2, cargoWeight: 78.2 },
-  { id: 'f3', flightNumber: 'GA-632', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'UPG', name: 'Hasanuddin' }, scheduledDeparture: '17:00', actualDeparture: null, status: 'on-time', cargoCount: 8, cargoWeight: 210.0 },
-  { id: 'f4', flightNumber: 'JT-711', airline: 'Lion Air', origin: { code: 'SUB', name: 'Juanda' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '16:45', actualDeparture: null, status: 'delayed', cargoCount: 1, cargoWeight: 45.0 },
-  { id: 'f5', flightNumber: 'GA-440', airline: 'Garuda Indonesia', origin: { code: 'DPS', name: 'Ngurah Rai' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '18:00', actualDeparture: null, status: 'on-time', cargoCount: 12, cargoWeight: 320.5 },
-  { id: 'f6', flightNumber: 'ID-6580', airline: 'Batik Air', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'KNO', name: 'Kualanamu' }, scheduledDeparture: '09:00', actualDeparture: '09:00', status: 'departed', cargoCount: 3, cargoWeight: 89.0 },
-  { id: 'f7', flightNumber: 'SJ-201', airline: 'Sriwijaya Air', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'PLM', name: 'SMB II Palembang' }, scheduledDeparture: '08:30', actualDeparture: '08:35', status: 'departed', cargoCount: 1, cargoWeight: 15.0 },
-  { id: 'f8', flightNumber: 'GA-181', airline: 'Garuda Indonesia', origin: { code: 'KNO', name: 'Kualanamu' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '14:00', actualDeparture: '14:10', status: 'departed', cargoCount: 6, cargoWeight: 156.0 },
-  { id: 'f9', flightNumber: 'GA-222', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'SOC', name: 'Adi Soemarmo Solo' }, scheduledDeparture: '16:00', actualDeparture: '16:00', status: 'departed', cargoCount: 3, cargoWeight: 450.0 },
-  { id: 'f10', flightNumber: 'JT-539', airline: 'Lion Air', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'JOG', name: 'Adisutjipto Yogyakarta' }, scheduledDeparture: '17:30', actualDeparture: null, status: 'on-time', cargoCount: 1, cargoWeight: 5.5 },
-  { id: 'f11', flightNumber: 'GA-672', airline: 'Garuda Indonesia', origin: { code: 'UPG', name: 'Hasanuddin' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '10:00', actualDeparture: '10:05', status: 'departed', cargoCount: 10, cargoWeight: 280.0 },
-  { id: 'f12', flightNumber: 'GA-238', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'SRG', name: 'Ahmad Yani Semarang' }, scheduledDeparture: '18:30', actualDeparture: null, status: 'delayed', cargoCount: 5, cargoWeight: 95.0 },
-  { id: 'f13', flightNumber: 'QG-972', airline: 'Citilink', origin: { code: 'BPN', name: 'Sultan Aji Muhammad Sulaiman' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '11:00', actualDeparture: '11:05', status: 'departed', cargoCount: 4, cargoWeight: 175.0 },
-  { id: 'f14', flightNumber: 'QG-973', airline: 'Citilink', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'BPN', name: 'Sultan Aji Muhammad Sulaiman' }, scheduledDeparture: '19:00', actualDeparture: null, status: 'on-time', cargoCount: 2, cargoWeight: 55.0 },
-  { id: 'f15', flightNumber: 'JT-846', airline: 'Lion Air', origin: { code: 'SUB', name: 'Juanda' }, destination: { code: 'DPS', name: 'Ngurah Rai' }, scheduledDeparture: '15:00', actualDeparture: '15:00', status: 'departed', cargoCount: 2, cargoWeight: 38.0 },
+  { id: 'f1', flightNumber: 'GA-412', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'SUB', name: 'Juanda' }, scheduledDeparture: '13:00', actualDeparture: '13:05', status: 'departed', cargoCount: 4, cargoWeight: 125.5, cargoCapacity: 600 },
+  { id: 'f2', flightNumber: 'QG-682', airline: 'Citilink', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'DPS', name: 'Ngurah Rai' }, scheduledDeparture: '15:30', actualDeparture: '15:40', status: 'departed', cargoCount: 2, cargoWeight: 78.2, cargoCapacity: 500 },
+  { id: 'f3', flightNumber: 'GA-632', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'UPG', name: 'Hasanuddin' }, scheduledDeparture: '17:00', actualDeparture: null, status: 'on-time', cargoCount: 8, cargoWeight: 210.0, cargoCapacity: 650 },
+  { id: 'f4', flightNumber: 'JT-711', airline: 'Lion Air', origin: { code: 'SUB', name: 'Juanda' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '16:45', actualDeparture: null, status: 'delayed', cargoCount: 1, cargoWeight: 45.0, cargoCapacity: 450 },
+  { id: 'f5', flightNumber: 'GA-440', airline: 'Garuda Indonesia', origin: { code: 'DPS', name: 'Ngurah Rai' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '18:00', actualDeparture: null, status: 'on-time', cargoCount: 12, cargoWeight: 320.5, cargoCapacity: 700 },
+  { id: 'f6', flightNumber: 'ID-6580', airline: 'Batik Air', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'KNO', name: 'Kualanamu' }, scheduledDeparture: '09:00', actualDeparture: '09:00', status: 'departed', cargoCount: 3, cargoWeight: 89.0, cargoCapacity: 550 },
+  { id: 'f7', flightNumber: 'SJ-201', airline: 'Sriwijaya Air', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'PLM', name: 'SMB II Palembang' }, scheduledDeparture: '08:30', actualDeparture: '08:35', status: 'departed', cargoCount: 1, cargoWeight: 15.0, cargoCapacity: 400 },
+  { id: 'f8', flightNumber: 'GA-181', airline: 'Garuda Indonesia', origin: { code: 'KNO', name: 'Kualanamu' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '14:00', actualDeparture: '14:10', status: 'departed', cargoCount: 6, cargoWeight: 156.0, cargoCapacity: 600 },
+  { id: 'f9', flightNumber: 'GA-222', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'SOC', name: 'Adi Soemarmo Solo' }, scheduledDeparture: '16:00', actualDeparture: '16:00', status: 'departed', cargoCount: 3, cargoWeight: 450.0, cargoCapacity: 500 },
+  { id: 'f10', flightNumber: 'JT-539', airline: 'Lion Air', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'JOG', name: 'Adisutjipto Yogyakarta' }, scheduledDeparture: '17:30', actualDeparture: null, status: 'on-time', cargoCount: 1, cargoWeight: 5.5, cargoCapacity: 450 },
+  { id: 'f11', flightNumber: 'GA-672', airline: 'Garuda Indonesia', origin: { code: 'UPG', name: 'Hasanuddin' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '10:00', actualDeparture: '10:05', status: 'departed', cargoCount: 10, cargoWeight: 280.0, cargoCapacity: 650 },
+  { id: 'f12', flightNumber: 'GA-238', airline: 'Garuda Indonesia', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'SRG', name: 'Ahmad Yani Semarang' }, scheduledDeparture: '18:30', actualDeparture: null, status: 'delayed', cargoCount: 5, cargoWeight: 95.0, cargoCapacity: 600 },
+  { id: 'f13', flightNumber: 'QG-972', airline: 'Citilink', origin: { code: 'BPN', name: 'Sultan Aji Muhammad Sulaiman' }, destination: { code: 'CGK', name: 'Soekarno-Hatta' }, scheduledDeparture: '11:00', actualDeparture: '11:05', status: 'departed', cargoCount: 4, cargoWeight: 175.0, cargoCapacity: 500 },
+  { id: 'f14', flightNumber: 'QG-973', airline: 'Citilink', origin: { code: 'CGK', name: 'Soekarno-Hatta' }, destination: { code: 'BPN', name: 'Sultan Aji Muhammad Sulaiman' }, scheduledDeparture: '19:00', actualDeparture: null, status: 'on-time', cargoCount: 2, cargoWeight: 55.0, cargoCapacity: 500 },
+  { id: 'f15', flightNumber: 'JT-846', airline: 'Lion Air', origin: { code: 'SUB', name: 'Juanda' }, destination: { code: 'DPS', name: 'Ngurah Rai' }, scheduledDeparture: '15:00', actualDeparture: '15:00', status: 'departed', cargoCount: 2, cargoWeight: 38.0, cargoCapacity: 450 },
 ];
 
 export const users: User[] = [
-  { id: 1, name: 'Supervisor Operasional', email: 'supervisor@gmail.com', role: 'supervisor', airport: 'CGK', lastLogin: '12 Apr 2026, 07:00 WIB', status: 'active' },
-  { id: 2, name: 'Operator Kargo', email: 'operator@gmail.com', role: 'operator', airport: 'CGK', lastLogin: '12 Apr 2026, 07:25 WIB', status: 'active' },
-  { id: 3, name: 'Dewi Rahayu', email: 'dewi.rahayu@aerotrack.co.id', role: 'operator', airport: 'CGK', lastLogin: '12 Apr 2026, 08:30 WIB', status: 'active' },
-  { id: 4, name: 'Hendra Setiawan', email: 'hendra.setiawan@aerotrack.co.id', role: 'operator', airport: 'CGK', lastLogin: '12 Apr 2026, 09:00 WIB', status: 'active' },
-  { id: 5, name: 'Siti Nurhaliza', email: 'siti.nurhaliza@aerotrack.co.id', role: 'operator', airport: 'SUB', lastLogin: '12 Apr 2026, 06:45 WIB', status: 'active' },
-  { id: 6, name: 'Agus Santoso', email: 'agus.santoso@aerotrack.co.id', role: 'operator', airport: 'SUB', lastLogin: '12 Apr 2026, 09:50 WIB', status: 'active' },
-  { id: 7, name: 'Wayan Sudana', email: 'wayan.sudana@aerotrack.co.id', role: 'supervisor', airport: 'DPS', lastLogin: '12 Apr 2026, 13:30 WIB', status: 'active' },
-  { id: 8, name: 'Harun Nasution', email: 'harun.nasution@aerotrack.co.id', role: 'operator', airport: 'KNO', lastLogin: '12 Apr 2026, 10:00 WIB', status: 'active' },
-  { id: 9, name: 'Syahrial Wahid', email: 'syahrial.wahid@aerotrack.co.id', role: 'supervisor', airport: 'UPG', lastLogin: '11 Apr 2026, 17:00 WIB', status: 'inactive' },
-  { id: 10, name: 'Admin Sistem', email: 'admin@gmail.com', role: 'admin', airport: 'HQ', lastLogin: '12 Apr 2026, 06:00 WIB', status: 'active' },
+  { id: 1, name: 'Supervisor Operasional', email: 'supervisor@gmail.com', password: 'supervisor2026', role: 'supervisor', airport: 'CGK', lastLogin: '12 Apr 2026, 07:00 WIB', status: 'active' },
+  { id: 2, name: 'Operator Kargo', email: 'operator@gmail.com', password: 'operator2026', role: 'operator', airport: 'CGK', lastLogin: '12 Apr 2026, 07:25 WIB', status: 'active' },
+  { id: 3, name: 'Dewi Rahayu', email: 'dewi.rahayu@aerotrack.co.id', password: 'operator2026', role: 'operator', airport: 'CGK', lastLogin: '12 Apr 2026, 08:30 WIB', status: 'active' },
+  { id: 4, name: 'Hendra Setiawan', email: 'hendra.setiawan@aerotrack.co.id', password: 'operator2026', role: 'operator', airport: 'CGK', lastLogin: '12 Apr 2026, 09:00 WIB', status: 'active' },
+  { id: 5, name: 'Siti Nurhaliza', email: 'siti.nurhaliza@aerotrack.co.id', password: 'operator2026', role: 'operator', airport: 'SUB', lastLogin: '12 Apr 2026, 06:45 WIB', status: 'active' },
+  { id: 6, name: 'Agus Santoso', email: 'agus.santoso@aerotrack.co.id', password: 'operator2026', role: 'operator', airport: 'SUB', lastLogin: '12 Apr 2026, 09:50 WIB', status: 'active' },
+  { id: 7, name: 'Wayan Sudana', email: 'wayan.sudana@aerotrack.co.id', password: 'supervisor2026', role: 'supervisor', airport: 'DPS', lastLogin: '12 Apr 2026, 13:30 WIB', status: 'active' },
+  { id: 8, name: 'Harun Nasution', email: 'harun.nasution@aerotrack.co.id', password: 'operator2026', role: 'operator', airport: 'KNO', lastLogin: '12 Apr 2026, 10:00 WIB', status: 'active' },
+  { id: 9, name: 'Syahrial Wahid', email: 'syahrial.wahid@aerotrack.co.id', password: 'supervisor2026', role: 'supervisor', airport: 'UPG', lastLogin: '11 Apr 2026, 17:00 WIB', status: 'inactive' },
+  { id: 10, name: 'Admin Sistem', email: 'admin@gmail.com', password: 'admin2026', role: 'admin', airport: 'HQ', lastLogin: '12 Apr 2026, 06:00 WIB', status: 'active' },
 ];
 
 export const weeklyStats: DailyStats[] = [

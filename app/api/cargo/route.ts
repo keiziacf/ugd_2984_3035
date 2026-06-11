@@ -83,12 +83,22 @@ function isShipmentStatus(value: unknown): value is ShipmentStatus {
 function validateCargoPayload(data: Partial<CargoPayload>): string | null {
   if (!data.awb?.trim()) return 'Nomor AWB wajib diisi.';
   if (!data.shipper?.trim()) return 'Nama pengirim wajib diisi.';
+  if (data.shipper.trim().length < 8) return 'Nama pengirim minimal 8 karakter.';
+  if (!data.shipperPhone?.trim()) return 'Nomor telepon pengirim wajib diisi.';
+  if (!/^\d{10,12}$/.test(data.shipperPhone.trim())) return 'Nomor telepon pengirim harus 10 sampai 12 angka.';
   if (!data.consignee?.trim()) return 'Nama penerima wajib diisi.';
+  if (data.consignee.trim().length < 8) return 'Nama penerima minimal 8 karakter.';
+  if (!data.consigneePhone?.trim()) return 'Nomor telepon penerima wajib diisi.';
+  if (!/^\d{10,12}$/.test(data.consigneePhone.trim())) return 'Nomor telepon penerima harus 10 sampai 12 angka.';
   if (!data.commodity?.trim()) return 'Jenis barang wajib diisi.';
   if (!data.originCode?.trim()) return 'Bandara asal wajib diisi.';
   if (!data.originName?.trim()) return 'Nama bandara asal wajib diisi.';
+  if (!data.originCity?.trim()) return 'Kota asal wajib diisi.';
+  if (data.originCity.trim().length < 4) return 'Kota asal minimal 4 karakter.';
   if (!data.destinationCode?.trim()) return 'Bandara tujuan wajib diisi.';
   if (!data.destinationName?.trim()) return 'Nama bandara tujuan wajib diisi.';
+  if (!data.destinationCity?.trim()) return 'Kota tujuan wajib diisi.';
+  if (data.destinationCity.trim().length < 4) return 'Kota tujuan minimal 4 karakter.';
   if (!data.flightNumber?.trim()) return 'Nomor penerbangan wajib diisi.';
   if (!data.scheduledDeparture?.trim()) return 'Jadwal keberangkatan wajib diisi.';
   if (!isShipmentStatus(data.currentStatus)) return 'Status pengiriman tidak valid.';

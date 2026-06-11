@@ -15,7 +15,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { NAV_ITEMS_BY_ROLE, ROLE_META } from '@/lib/permissions';
+import { NAV_ITEMS_BY_ROLE } from '@/lib/permissions';
 import { AeroTrackIcon } from '../icons/AeroTrackLogo';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -55,7 +55,6 @@ export function Sidebar() {
 
   const sidebarBg = isDark ? 'bg-[#061526]' : 'bg-[#0B2447]';
   const navItems = NAV_ITEMS_BY_ROLE[currentUser.role];
-  const roleMeta = ROLE_META[currentUser.role];
 
   return (
     <div
@@ -159,40 +158,6 @@ export function Sidebar() {
       </nav>
 
       <div className="mx-4 border-t border-white/10" />
-
-      <div className="flex-shrink-0 p-3">
-        <button
-          type="button"
-          onClick={() => navigateTo('/settings', 'Membuka pengaturan...')}
-          className={`flex w-full items-center overflow-hidden rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-white/5 ${
-            sidebarCollapsed ? 'justify-center' : 'gap-3'
-          }`}
-          title={sidebarCollapsed ? `${currentUser.name} · ${roleMeta.label}` : undefined}
-        >
-          <div
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full shadow"
-            style={{ backgroundColor: roleMeta.color }}
-          >
-            <span className="text-white" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-              {currentUser.initials}
-            </span>
-          </div>
-          <div
-            className="min-w-0 overflow-hidden transition-all duration-300 ease-in-out"
-            style={{ maxWidth: sidebarCollapsed ? 0 : 160, opacity: sidebarCollapsed ? 0 : 1 }}
-          >
-            <p className="truncate whitespace-nowrap text-white" style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-              {currentUser.name}
-            </p>
-            <p
-              className="truncate whitespace-nowrap"
-              style={{ fontSize: '0.6875rem', color: roleMeta.color, opacity: 0.8, fontWeight: 500 }}
-            >
-              {roleMeta.label} &bull; {currentUser.airport}
-            </p>
-          </div>
-        </button>
-      </div>
 
       <div className="flex-shrink-0 px-2 pb-3">
         <button
