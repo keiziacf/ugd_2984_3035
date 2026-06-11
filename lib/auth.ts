@@ -10,7 +10,7 @@ export const LOGIN_ACCOUNTS = [
   {
     role: 'admin',
     label: 'Admin',
-    name: 'Admin Sistem',
+    name: 'Admin',
     email: 'admin@gmail.com',
     password: 'admin2026',
     airport: 'HQ',

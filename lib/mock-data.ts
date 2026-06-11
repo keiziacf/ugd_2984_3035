@@ -385,7 +385,7 @@ export const users: User[] = [
   { id: 7, name: 'Wayan Sudana', email: 'wayan.sudana@aerotrack.co.id', password: 'supervisor2026', role: 'supervisor', airport: 'DPS', lastLogin: '12 Apr 2026, 13:30 WIB', status: 'active' },
   { id: 8, name: 'Harun Nasution', email: 'harun.nasution@aerotrack.co.id', password: 'operator2026', role: 'operator', airport: 'KNO', lastLogin: '12 Apr 2026, 10:00 WIB', status: 'active' },
   { id: 9, name: 'Syahrial Wahid', email: 'syahrial.wahid@aerotrack.co.id', password: 'supervisor2026', role: 'supervisor', airport: 'UPG', lastLogin: '11 Apr 2026, 17:00 WIB', status: 'inactive' },
-  { id: 10, name: 'Admin Sistem', email: 'admin@gmail.com', password: 'admin2026', role: 'admin', airport: 'HQ', lastLogin: '12 Apr 2026, 06:00 WIB', status: 'active' },
+  { id: 10, name: 'Admin', email: 'admin@gmail.com', password: 'admin2026', role: 'admin', airport: 'HQ', lastLogin: '12 Apr 2026, 06:00 WIB', status: 'active' },
 ];
 
 export const weeklyStats: DailyStats[] = [

@@ -79,7 +79,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as AuthUser;
-          setCurrentUser(parsed);
+          const savedUser =
+            parsed.email.toLowerCase() === 'admin@gmail.com' && parsed.role === 'admin'
+              ? { ...parsed, name: 'Admin', initials: makeInitials('Admin') }
+              : parsed;
+          setCurrentUser(savedUser);
+          sessionStorage.setItem('ep_user', JSON.stringify(savedUser));
           setIsAuthenticated(true);
         } catch {
           // ignore

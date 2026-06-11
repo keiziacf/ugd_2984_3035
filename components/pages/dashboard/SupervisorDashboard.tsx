@@ -1,6 +1,5 @@
 'use client';
 
-import { useId } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
@@ -12,19 +11,10 @@ import {
   ExternalLink,
   Clock,
   Users,
+  ClipboardCheck,
 } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import { useApp } from '@/context/AppContext';
-import { todayShipmentsList, weeklyStats, flights, users } from '@/lib/mock-data';
+import { todayShipmentsList, flights, users } from '@/lib/mock-data';
 
 const FLIGHT_STATUS: Record<string, { label: string; dot: string }> = {
   'on-time': { label: 'Tepat Waktu', dot: 'bg-green-500' },
@@ -36,13 +26,8 @@ const FLIGHT_STATUS: Record<string, { label: string; dot: string }> = {
 export function SupervisorDashboard() {
   const { isDark, currentUser } = useApp();
   const router = useRouter();
-  const uid = useId().replace(/:/g, '');
-  const gradShipped = `${uid}-sup-shipped`;
-  const gradArrived = `${uid}-sup-arrived`;
 
   const cardBase = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
-  const gridColor = isDark ? '#334155' : '#e2e8f0';
-  const tickColor = isDark ? '#94a3b8' : '#64748b';
 
   const airport = currentUser.airport;
   const arrivedCount = todayShipmentsList.filter((s) => s.currentStatus === 'Arrived').length;
@@ -106,6 +91,12 @@ export function SupervisorDashboard() {
     { awb: 'AT-2604120014', action: 'Verifikasi dokumen QG-973', urgent: false },
   ];
 
+  const shiftControls = [
+    { time: '14:00', title: 'Briefing Gate A2', desc: 'Koordinasi muat QG-973', status: 'Berjalan', href: '/cargo?q=QG-973' },
+    { time: '15:30', title: 'Review Delay GA-238', desc: 'Butuh persetujuan supervisor', status: 'Urgent', href: '/tracking/AT-2604120012' },
+    { time: '16:00', title: 'Validasi Dokumen', desc: 'Cek manifest AT-2604120014', status: 'Pending', href: '/tracking/AT-2604120014' },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -153,38 +144,45 @@ export function SupervisorDashboard() {
         >
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className={isDark ? 'text-slate-200' : 'text-slate-800'}>Tren Kargo Mingguan</h3>
+              <h3 className={isDark ? 'text-slate-200' : 'text-slate-800'}>Ruang Kendali Shift</h3>
               <p className={isDark ? 'text-slate-500' : 'text-slate-400'} style={{ fontSize: '0.8125rem' }}>
-                6 Apr - 12 Apr 2026
+                Fokus kerja supervisor untuk shift berjalan
               </p>
             </div>
-            <Link href="/reports" className="flex items-center gap-1 text-blue-600 transition-colors hover:text-blue-700" style={{ fontSize: '0.8125rem' }}>
-              Laporan <ExternalLink size={12} />
-            </Link>
+            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+              {airport}
+            </span>
           </div>
-          <svg aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-            <defs>
-              <linearGradient id={gradShipped} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id={gradArrived} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-          </svg>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={weeklyStats} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-              <XAxis dataKey="date" tick={{ fontSize: 12, fill: tickColor }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: tickColor }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, borderRadius: 8, fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b' }} />
-              <Legend wrapperStyle={{ fontSize: 12, color: tickColor, paddingTop: 8 }} />
-              <Area type="monotone" dataKey="shipped" name="Dikirim" stroke="#f59e0b" strokeWidth={2} fill={`url(#${gradShipped})`} dot={false} />
-              <Area type="monotone" dataKey="arrived" name="Tiba" stroke="#16a34a" strokeWidth={2} fill={`url(#${gradArrived})`} dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="space-y-3">
+            {shiftControls.map((item) => (
+              <button
+                key={item.title}
+                type="button"
+                onClick={() => router.push(item.href)}
+                className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
+                  isDark ? 'border-slate-700 bg-slate-700/30 hover:bg-slate-700/50' : 'border-slate-200 bg-slate-50 hover:bg-blue-50/40'
+                }`}
+              >
+                <div className={isDark ? 'rounded-lg bg-slate-800 px-2 py-1 font-mono text-slate-300' : 'rounded-lg bg-white px-2 py-1 font-mono text-slate-600'} style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                  {item.time}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck size={14} className={item.status === 'Urgent' ? 'text-red-500' : item.status === 'Pending' ? 'text-amber-500' : 'text-blue-500'} />
+                    <p className={isDark ? 'text-slate-200' : 'text-slate-800'} style={{ fontSize: '0.875rem', fontWeight: 700 }}>
+                      {item.title}
+                    </p>
+                  </div>
+                  <p className={isDark ? 'mt-1 text-slate-500' : 'mt-1 text-slate-500'} style={{ fontSize: '0.75rem' }}>
+                    {item.desc}
+                  </p>
+                </div>
+                <span className={item.status === 'Urgent' ? 'text-red-500' : item.status === 'Pending' ? 'text-amber-600' : 'text-blue-600'} style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                  {item.status}
+                </span>
+              </button>
+            ))}
+          </div>
         </motion.div>
 
         <motion.div

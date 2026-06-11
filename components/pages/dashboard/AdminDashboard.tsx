@@ -1,6 +1,5 @@
 'use client';
 
-import { useId } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
@@ -14,25 +13,14 @@ import {
   ExternalLink,
   Shield,
   Server,
-  Globe,
   CheckCircle2,
   XCircle,
   TrendingUp,
+  ClipboardList,
+  MapPin,
 } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from 'recharts';
 import { useApp } from '@/context/AppContext';
-import { todayShipmentsList, weeklyStats, recentActivity, users, flights } from '@/lib/mock-data';
+import { todayShipmentsList, recentActivity, users, flights } from '@/lib/mock-data';
 import { ROLE_META } from '@/lib/permissions';
 
 const ACTIVITY_DOT: Record<string, string> = {
@@ -52,25 +40,11 @@ const usersByRole = {
 const activeUsers = users.filter((u) => u.status === 'active').length;
 const inactiveUsers = users.filter((u) => u.status === 'inactive').length;
 
-const airportActivity = [
-  { airport: 'CGK', cargo: 89, flights: 6 },
-  { airport: 'SUB', cargo: 34, flights: 3 },
-  { airport: 'DPS', cargo: 28, flights: 2 },
-  { airport: 'UPG', cargo: 21, flights: 2 },
-  { airport: 'KNO', cargo: 18, flights: 2 },
-  { airport: 'BPN', cargo: 15, flights: 2 },
-];
-
 export function AdminDashboard() {
   const { isDark } = useApp();
   const router = useRouter();
-  const uid = useId().replace(/:/g, '');
-  const gradShipped = `${uid}-admin-shipped`;
-  const gradArrived = `${uid}-admin-arrived`;
 
   const cardBase = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
-  const gridColor = isDark ? '#334155' : '#e2e8f0';
-  const tickColor = isDark ? '#94a3b8' : '#64748b';
 
   const arrivedCount = todayShipmentsList.filter((s) => s.currentStatus === 'Arrived').length;
   const delayedFlights = flights.filter((f) => f.status === 'delayed').length;
@@ -124,6 +98,18 @@ export function AdminDashboard() {
     amber: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
   };
 
+  const controlQueue = [
+    { label: 'Review akun nonaktif', desc: '1 pengguna perlu keputusan akses', icon: Users, href: '/users?status=inactive', tone: 'violet' },
+    { label: 'Pantau flight delay', desc: '2 penerbangan perlu koordinasi', icon: AlertTriangle, href: '/flights?status=delayed', tone: 'amber' },
+    { label: 'Validasi dokumen kargo', desc: 'AT-2604120014 menunggu verifikasi', icon: ClipboardList, href: '/tracking/AT-2604120014', tone: 'blue' },
+  ];
+
+  const priorityCargo = [
+    { awb: 'AT-2604120014', route: 'CGK-BPN', status: 'Dokumen perlu verifikasi', level: 'Prioritas', href: '/tracking/AT-2604120014' },
+    { awb: 'AT-2604120012', route: 'CGK-SRG', status: 'Sortasi tertahan', level: 'Urgent', href: '/tracking/AT-2604120012' },
+    { awb: 'AT-2604120003', route: 'CGK-UPG', status: 'Menunggu konfirmasi muat', level: 'Monitor', href: '/tracking/AT-2604120003' },
+  ];
+
   return (
     <div className="space-y-6">
 
@@ -164,10 +150,9 @@ export function AdminDashboard() {
         ))}
       </div>
 
-      {/* Main Grid: Chart + User Management */}
+      {/* Main Grid: Operations + User Management */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
-        {/* Weekly Cargo Chart */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -176,38 +161,46 @@ export function AdminDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className={`${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Tren Kargo Mingguan</h3>
+              <h3 className={`${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Pusat Kontrol Operasional</h3>
               <p className={`${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.8125rem' }}>
-                Semua bandara · 6 Apr — 12 Apr 2026
+                Tindakan cepat untuk kondisi hari ini
               </p>
             </div>
-            <Link href="/reports" className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors" style={{ fontSize: '0.8125rem' }}>
-              Lihat Laporan <ExternalLink size={12} />
-            </Link>
+            <span className="rounded-full bg-green-100 px-2.5 py-1 text-green-700 dark:bg-green-900/30 dark:text-green-300" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+              Live
+            </span>
           </div>
-          <svg aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
-            <defs>
-              <linearGradient id={gradShipped} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#1a56db" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#1a56db" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id={gradArrived} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-          </svg>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={weeklyStats} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-              <XAxis dataKey="date" tick={{ fontSize: 12, fill: tickColor }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: tickColor }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, borderRadius: 8, fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b' }} />
-              <Legend wrapperStyle={{ fontSize: 12, color: tickColor, paddingTop: 8 }} />
-              <Area type="monotone" dataKey="shipped" name="Kargo Dikirim" stroke="#1a56db" strokeWidth={2} fill={`url(#${gradShipped})`} dot={false} />
-              <Area type="monotone" dataKey="arrived" name="Kargo Tiba" stroke="#16a34a" strokeWidth={2} fill={`url(#${gradArrived})`} dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {controlQueue.map((item) => {
+              const Icon = item.icon;
+              const toneClass: Record<string, string> = {
+                violet: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300',
+                amber: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300',
+                blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300',
+              };
+
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => router.push(item.href)}
+                  className={`rounded-xl border p-4 text-left transition-colors ${
+                    isDark ? 'border-slate-700 bg-slate-700/30 hover:bg-slate-700/60' : 'border-slate-200 bg-slate-50 hover:bg-blue-50/50'
+                  }`}
+                >
+                  <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${toneClass[item.tone]}`}>
+                    <Icon size={18} />
+                  </div>
+                  <p className={isDark ? 'text-slate-200' : 'text-slate-800'} style={{ fontSize: '0.875rem', fontWeight: 700 }}>
+                    {item.label}
+                  </p>
+                  <p className={isDark ? 'mt-1 text-slate-500' : 'mt-1 text-slate-500'} style={{ fontSize: '0.75rem', lineHeight: 1.45 }}>
+                    {item.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
         </motion.div>
 
         {/* User Summary */}
@@ -312,10 +305,9 @@ export function AdminDashboard() {
         </motion.div>
       </div>
 
-      {/* Airport Activity + System Health */}
+      {/* Priority Queue + System Health */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
-        {/* Airport Bar Chart */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -324,23 +316,44 @@ export function AdminDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className={`${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Aktivitas per Bandara</h3>
-              <p className={`${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.8125rem' }}>Distribusi kargo hari ini</p>
+              <h3 className={`${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Antrian Prioritas</h3>
+              <p className={`${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.8125rem' }}>Kargo yang butuh tindak lanjut cepat</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <Globe size={14} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
-              <span className={`${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.75rem' }}>27 bandara aktif</span>
+              <MapPin size={14} className={isDark ? 'text-slate-500' : 'text-slate-400'} />
+              <span className={`${isDark ? 'text-slate-500' : 'text-slate-400'}`} style={{ fontSize: '0.75rem' }}>Lintas rute</span>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={airportActivity} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-              <XAxis dataKey="airport" tick={{ fontSize: 12, fill: tickColor }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: tickColor }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, borderRadius: 8, fontSize: 13, color: isDark ? '#e2e8f0' : '#1e293b' }} />
-              <Bar dataKey="cargo" name="Kargo" fill="#1a56db" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="space-y-3">
+            {priorityCargo.map((item) => (
+              <button
+                key={item.awb}
+                type="button"
+                onClick={() => router.push(item.href)}
+                className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                  isDark ? 'border-slate-700 hover:bg-slate-700/50' : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`h-2.5 w-2.5 rounded-full ${item.level === 'Urgent' ? 'bg-red-500' : item.level === 'Prioritas' ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={isDark ? 'font-mono text-blue-400' : 'font-mono text-blue-600'} style={{ fontSize: '0.8125rem', fontWeight: 700 }}>
+                      {item.awb}
+                    </span>
+                    <span className={isDark ? 'rounded bg-slate-700 px-1.5 py-0.5 font-mono text-slate-300' : 'rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600'} style={{ fontSize: '0.6875rem', fontWeight: 700 }}>
+                      {item.route}
+                    </span>
+                  </div>
+                  <p className={isDark ? 'mt-1 text-slate-400' : 'mt-1 text-slate-500'} style={{ fontSize: '0.75rem' }}>
+                    {item.status}
+                  </p>
+                </div>
+                <span className={item.level === 'Urgent' ? 'text-red-500' : item.level === 'Prioritas' ? 'text-amber-600' : 'text-blue-600'} style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                  {item.level}
+                </span>
+              </button>
+            ))}
+          </div>
         </motion.div>
 
         {/* System Health */}

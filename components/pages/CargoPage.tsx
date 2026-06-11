@@ -102,6 +102,11 @@ function parseShipmentDate(shipment: Shipment) {
   return parseDisplayDate(shipment.scheduledDeparture);
 }
 
+function csvCell(value: string | number | undefined | null) {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export function CargoPage() {
   const { isDark, currentUser } = useApp();
   const { shipments, deleteShipment } = useCargo();
@@ -280,6 +285,60 @@ export function CargoPage() {
     setTimeout(() => setToast(''), 4000);
   }
 
+  function handleExport() {
+    if (filtered.length === 0) {
+      showToast('Tidak ada data kargo untuk diexport.', 'info');
+      return;
+    }
+
+    const headers = [
+      'AWB',
+      'Pengirim',
+      'Penerima',
+      'Asal',
+      'Tujuan',
+      'Rute',
+      'Berat (kg)',
+      'Koli',
+      'Komoditas',
+      'Nomor Penerbangan',
+      'Jadwal Berangkat',
+      'Status',
+    ];
+
+    const rows = filtered.map((shipment) => [
+      shipment.awb,
+      shipment.shipper,
+      shipment.consignee,
+      `${shipment.origin.name} (${shipment.origin.code})`,
+      `${shipment.destination.name} (${shipment.destination.code})`,
+      `${shipment.origin.code}-${shipment.destination.code}`,
+      shipment.weight,
+      shipment.pieces,
+      shipment.commodity,
+      shipment.flightNumber,
+      shipment.scheduledDeparture,
+      STATUS_BADGE[shipment.currentStatus].label,
+    ]);
+
+    const csv = [
+      headers.map(csvCell).join(','),
+      ...rows.map((row) => row.map(csvCell).join(',')),
+    ].join('\r\n');
+
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `data-kargo-${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast(`${filtered.length} data kargo berhasil diexport.`, 'success');
+  }
+
   async function handleDelete() {
     if (!deletingShipment) return;
     const result = await deleteShipment(deletingShipment.awb);
@@ -353,6 +412,8 @@ export function CargoPage() {
         <div className="flex items-center gap-2.5">
           {canExport && (
             <button
+              type="button"
+              onClick={handleExport}
               className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-colors ${
                 isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'
               }`}

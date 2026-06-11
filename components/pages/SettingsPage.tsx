@@ -10,7 +10,6 @@ import {
   User,
   Globe,
   Info,
-  CheckCircle2,
   Save,
   X,
 } from 'lucide-react';
@@ -61,7 +60,6 @@ export function SettingsPage() {
     arrived: true,
     system: false,
   });
-  const [saved, setSaved] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -83,11 +81,6 @@ export function SettingsPage() {
       : currentUser.role === 'supervisor'
         ? 'Monitoring dan persetujuan operasional'
         : 'Operasional harian kargo dan tracking';
-
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
 
   const closePasswordModal = () => {
     setPasswordModalOpen(false);
@@ -126,8 +119,6 @@ export function SettingsPage() {
 
     setPasswordUpdated(true);
     closePasswordModal();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -373,27 +364,6 @@ export function SettingsPage() {
           </div>
         </div>
       </motion.div>
-
-      <div className="flex justify-end pb-2">
-        <button
-          type="button"
-          onClick={handleSave}
-          className={`flex items-center gap-2 rounded-lg px-5 py-2.5 transition-all ${
-            saved ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
-          style={{ fontWeight: 500 }}
-        >
-          {saved ? (
-            <>
-              <CheckCircle2 size={16} /> Tersimpan
-            </>
-          ) : (
-            <>
-          <Save size={16} /> Simpan Perubahan
-            </>
-          )}
-        </button>
-      </div>
 
       {passwordModalOpen && (
         <div
